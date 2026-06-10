@@ -1,0 +1,8 @@
+{
+  "comment": "Cube estimator (montecarlo_validation.cube_estimate), N=2000, seed=11, Starlink-like mix, 0.5 deg dispersion. E in collisions/yr for the N=2000 population; analytic reference 1.2135.",
+  "h_km": [100.0, 50.0, 25.0],
+  "n_epochs": [600, 3000, 12000],
+  "E_per_year": [1.059, 1.129, 1.145],
+  "E_se": [0.017, 0.022, 0.031],
+  "E_analytic": 1.2135
+}

@@ -1,0 +1,81 @@
+{
+ "baseline_kinetic": {
+  "n_mean_m3": 4.3042238598515604e-16,
+  "sigma_m2": 480.0,
+  "v_rel_ms": 10000.0,
+  "nu_per_s": 2.066027452728749e-09,
+  "nu_per_year": 0.06520382640811932,
+  "P1_per_window": 0.06312351625381496,
+  "E_collisions": 2608.153056324773,
+  "E_residual": 2608.153056324773,
+  "mean_free_path_m": 3422543007609.223,
+  "mfp_over_shell_thickness": 11408476.692030745,
+  "dilute_regime_ok": 1.0,
+  "V_m3": 1.858639387839808e+20,
+  "v_orb_ms": 7534.759614599094
+ },
+ "keplerian": {
+  "E_collisions": 1941.3099179056205,
+  "E_residual": 1941.3099179056205,
+  "nu_per_year_mean": 0.048532747947640516,
+  "P1_per_window_mean": 0.04737385775600933,
+  "v_rel_effective_ms": 6087.614961467735,
+  "F_spatial": 1.2226851110363044,
+  "F_velocity": 0.6087614961467736,
+  "ratio_kep_over_kin": 0.7443236175108445,
+  "R_kin_check": 2608.153056324773,
+  "v_orb_ms": 7534.759614599094,
+  "nu_per_year_by_population": {
+   "43.0deg": 0.04160567985924305,
+   "53.0deg": 0.043945997507829695,
+   "70.0deg": 0.050684559168569766,
+   "97.6deg": 0.06248150569473037
+  }
+ },
+ "thin_shell_10km": {
+  "E_collisions": 58248.15847001756,
+  "ratio_to_band": 30.004564409199794
+ },
+ "density_peak_over_mean": 4.336391886464498,
+ "fraction_collisions_above_40deg": 0.46827354058119686,
+ "fraction_collisions_above_60deg": 0.10697661130486631,
+ "rate_latitude_integral_per_year": 1937.4762453548522,
+ "mean_impact_speed_ms": 10230.09817325277,
+ "delta_r_km": {
+  "E_acc_100_thin": 7873.35071819888,
+  "E_acc_100_exact": 4542.688012693298,
+  "E_acc_1_exact": 41906.37288682653
+ },
+ "mc_direct_ratio": 1.00280838750825,
+ "mc_direct_ratio_se": 0.03246712031466828,
+ "cascade": {
+  "kappa": 407.5239150507457,
+  "N_crit_for_kappa_1": 196.30749765946433,
+  "regime": "RUNAWAY (Kessler cascade)",
+  "residual_collisions_per_year": 1941.3099179056205
+ },
+ "avoidance": {
+  "f_fail_1": {
+   "residual_collisions_per_year": 1941.3099179056205,
+   "maneuvers_per_sat_per_year_order": 0.048532747947640516
+  },
+  "f_fail_0.01": {
+   "residual_collisions_per_year": 19.413099179056207,
+   "maneuvers_per_sat_per_year_order": 0.048532747947640516
+  },
+  "f_fail_0.001": {
+   "residual_collisions_per_year": 1.9413099179056206,
+   "maneuvers_per_sat_per_year_order": 0.048532747947640516
+  },
+  "f_fail_0.0001": {
+   "residual_collisions_per_year": 0.19413099179056206,
+   "maneuvers_per_sat_per_year_order": 0.048532747947640516
+  }
+ },
+ "isotropic_limit": {
+  "ratio_measured": 0.9565,
+  "ratio_se": 0.007,
+  "ratio_predicted_4_over_pi": 0.9593553901381041,
+  "comment": "i with cos i ~ U(-1,1), 4000 MC inclination pairs"
+ }
+}

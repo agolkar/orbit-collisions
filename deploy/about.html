@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About: LEO Mega-Constellation Collision Explorer</title>
+<style>
+  :root{--bg:#0b0f1a;--panel:#121a2b;--ink:#dfe7f5;--dim:#8fa0bd;--acc:#5aa9ff;--line:#22304d;--amber:#ffce6b}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15.5px/1.65 "Segoe UI",system-ui,sans-serif}
+  .banner{background:rgba(255,196,60,.12);color:var(--amber);border-bottom:1px solid rgba(255,196,60,.35);
+    padding:7px 18px;font-size:12.5px;text-align:center}
+  main{max-width:840px;margin:0 auto;padding:28px 22px 40px}
+  h1{font-size:26px;margin:6px 0 2px}
+  h2{font-size:19px;margin:30px 0 8px;color:var(--acc)}
+  .sub{color:var(--dim);font-size:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin:14px 0}
+  .big{font-size:21px;font-weight:650}
+  a{color:var(--acc)}
+  .btn{display:inline-block;background:var(--acc);color:#0b0f1a;font-weight:650;border-radius:8px;
+    padding:9px 16px;text-decoration:none;margin:8px 10px 0 0}
+  .btn.ghost{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+  footer{background:rgba(255,196,60,.12);color:var(--amber);border-top:1px solid rgba(255,196,60,.35);
+    padding:7px 18px;font-size:12.5px;text-align:center;margin-top:30px}
+  footer a{color:#ffe2a0}
+  td{padding:4px 14px 4px 0;vertical-align:top}
+  .dim{color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="banner">⚠ This model has been AI-generated (Claude Fable 5, Anthropic, under the
+supervision of A. Golkar) and is currently undergoing verification.
+Do not trust the model results unless manually verified.</div>
+<main>
+  <h1>Can 80,000 computing satellites share low Earth orbit without crashing into each other?</h1>
+  <p class="sub">A plain-language guide to the LEO Mega-Constellation Collision Explorer</p>
+  <p>
+    <a class="btn" href="index.html">Open the interactive model</a>
+    <a class="btn ghost" href="report.pdf">Read the technical report (PDF)</a>
+  </p>
+
+  <h2>What this is about</h2>
+  <p>
+    Several organizations are proposing to move data centers into space: fleets of tens of
+    thousands of satellites doing AI computation in orbit. Computers produce heat, and in
+    space the only way to get rid of heat is to radiate it away from large panels. Large
+    panels make large targets. This tool asks a simple question with serious consequences:
+    if you fly 80,000 satellites, each the size of half a tennis court, in the same band of
+    low Earth orbit, how often would they collide?
+  </p>
+
+  <h2>The headline answer</h2>
+  <div class="card">
+    <div class="big">About 2,000 collisions per year, if nobody steered.</div>
+    <p class="dim" style="margin-bottom:0">
+      Each satellite would have roughly a 5% chance per year of being hit. This is the
+      "natural" rate: it measures how hard the collision-avoidance autopilot must work,
+      not how many collisions actually happen. With avoidance that succeeds 99.9% of the
+      time, actual losses drop to about 2 per year.
+    </p>
+  </div>
+  <p>Four consequences follow from the physics, and they do not depend on fine details:</p>
+  <p>
+    <strong>You cannot fix this with geometry.</strong> Spreading the fleet across a thicker
+    band of altitudes dilutes the risk, but to reach one collision per year you would need to
+    fill space out beyond the geostationary belt, 40,000 km up. No realistic orbit design
+    makes the problem go away; only active steering, smaller satellites, or fewer of them do.
+  </p>
+  <p>
+    <strong>The stakes compound.</strong> At this density, the debris from a single breakup
+    is likely to cause further collisions over the following years, each producing more
+    debris: the runaway known as the Kessler cascade. You cannot dodge debris too small to
+    track, so prevention and the reliable disposal of dead satellites carry nearly all the
+    weight.
+  </p>
+  <p>
+    <strong>Bigger radiators mean more collisions, in direct proportion.</strong> Twice the
+    panel area, twice the collision burden; and the burden grows with the <em>square</em> of
+    the number of satellites. Every additional unit of computing power in orbit carries a
+    proportional collision tax.
+  </p>
+  <p>
+    <strong>Where and how fast matters.</strong> Collisions concentrate at high latitudes,
+    where the orbital planes cross, and typical impact speeds are 10 to 15 km/s, around
+    twenty times faster than a rifle bullet. Almost any hit is destructive.
+  </p>
+
+  <h2>How the model works, in one paragraph</h2>
+  <p>
+    The tool contains two physical models. The first treats satellites like molecules of a
+    very thin gas bouncing around a spherical shell, a classic approach from the 1970s. The
+    second respects real orbital mechanics: every satellite follows an orbit, and at any
+    point in space only certain velocities are possible. The second model is the trustworthy
+    one; the first is the benchmark. Their agreement within about 25% is itself a finding,
+    and the orbital model was checked against a brute-force simulation that tracked
+    thousands of orbits and counted every close approach: prediction and count agreed
+    within 3%.
+  </p>
+
+  <h2>How to explore the problem yourself</h2>
+  <p>
+    Open the <a href="index.html">interactive model</a>. The left panel sets the scenario,
+    the cards at the top update instantly, and the 3D view shows a sample of the
+    constellation: satellites are light blue where calm and flash red where the local
+    collision risk concentrates; a 💥 marks a collision at the model's natural rate in
+    simulated time.
+  </p>
+  <table>
+    <tr><td><strong>Try this</strong></td><td><strong>What you will see</strong></td></tr>
+    <tr><td>Drag "Radiator area" down</td>
+        <td>Collisions fall in direct proportion: the radiator-size tax.</td></tr>
+    <tr><td>Drag "N satellites" up or down</td>
+        <td>Collisions scale with the square of fleet size.</td></tr>
+    <tr><td>Move "Avoidance failure"</td>
+        <td>The difference between natural workload and actual residual losses.</td></tr>
+    <tr><td>Switch "Orbit regime" to all Sun-synchronous</td>
+        <td>A popular orbit choice (convenient for solar panels and radiators) that
+            <em>raises</em> the collision rate about 40%, because all near-polar orbital
+            planes cross each other at steep angles.</td></tr>
+    <tr><td>Set "Radial profile" to a single thin shell</td>
+        <td>Concentrating everyone at one altitude multiplies the rate about 30 times.</td></tr>
+    <tr><td>Open the "Satellite scale" tab</td>
+        <td>The satellite next to a city bus, a tennis court, an ISS solar wing, and
+            Hubble, to make the size concrete.</td></tr>
+    <tr><td>Watch the cascade card</td>
+        <td>Whether one breakup would stay contained (green) or run away (red), and the
+            fleet size where that boundary sits.</td></tr>
+  </table>
+
+  <h2>What this model does not say</h2>
+  <p>
+    It does not say orbital computing is impossible; it says the viability rests on
+    operations, not on orbit geometry. It does not predict any specific company's system;
+    parameters are adjustable precisely so assumptions can be questioned. It simplifies:
+    circular orbits, randomized orbital planes, an idealized avoidance system summarized by
+    a single reliability number, and a deliberately simple cascade criterion. And it is an
+    AI-generated model under verification: treat every number as provisional until checked.
+    The mathematics, assumptions, and validation are documented in the
+    <a href="report.pdf">technical report</a>.
+  </p>
+
+  <h2>Feedback</h2>
+  <p>
+    If you spot a bug, disagree with an assumption, or have comments or feedback, please
+    write to <a href="mailto:golkar@tum.de">golkar@tum.de</a>. The complete source code,
+    including the Python engine, the Monte Carlo validation, and this site, is open at
+    <a href="https://github.com/agolkar/orbit-collisions" target="_blank" rel="noopener">github.com/agolkar/orbit-collisions</a> (MIT license).
+  </p>
+</main>
+<footer>
+  &copy; 2026 Alessandro Golkar, Technical University of Munich
+  &middot; model and report prepared by Claude Fable 5 (Anthropic) under his supervision
+  &middot; <a href="mailto:golkar@tum.de">golkar@tum.de</a>
+  &middot; <a href="index.html">interactive model</a>
+  &middot; <a href="report.pdf">technical report</a>
+</footer>
+</body>
+</html>
