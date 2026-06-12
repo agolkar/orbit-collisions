@@ -88,6 +88,7 @@
   <button data-tab="tab-params">Parameters &amp; Assumptions</button>
   <button data-tab="tab-collision">Collision Avoidance</button>
   <button data-tab="tab-thermal">Thermal</button>
+  <button data-tab="tab-power">Power</button>
   <button data-tab="tab-adcs">ADCS</button>
   <button data-tab="tab-external">External Debris</button>
   <button data-tab="tab-validation">Validation</button>
@@ -112,6 +113,11 @@
     <div class="card"><div class="l">Radiator root temperature</div><div class="v" id="mTrad">&ndash;</div><div class="s">GPU junction <span id="mTj"></span> &middot; thermal mass <span id="mMass"></span> kg/sat</div></div>
   </div>
   <div class="verdict" id="mVerdict">&ndash;</div>
+  <div class="chartbox" style="margin-top:10px"><h3>The two scales of the problem: the fleet and the vehicle</h3>
+    <div class="mini3d" id="master3d" style="height:320px">
+      <div class="minihint">drag to rotate &middot; live orbits (sampled, true Keplerian motion) &middot; 💥 statistical collisions at the model rate &middot; vehicle not to scale</div>
+    </div>
+  </div>
   <p class="footnote">
     How the layers connect: the Thermal tab sizes the radiator from GPU temperature and IT power
     (optionally driving the area used everywhere else); the Collision Avoidance tab computes the
@@ -192,6 +198,21 @@
       <label>Fin efficiency &eta; <input type="number" id="tEta" value="0.85" step="0.02" min="0.5" max="1"></label>
       <label>Sink temperature [K] <input type="number" id="tTsink" value="200" step="10" min="3"></label>
       <label>Radiator areal density [kg/m&sup2;] <input type="number" id="tSigRad" value="3.5" step="0.5" min="1"></label>
+    </fieldset>
+
+    <fieldset><legend>Power subsystem</legend>
+      <label>Orbit illumination
+        <select id="pwOrbit"><option value="beta0">worst case (&beta;=0, max eclipse)</option>
+          <option value="dawndusk">dawn-dusk SSO (~no eclipse)</option></select>
+      </label>
+      <label>PV areal power BOL [W/m&sup2;] <input type="number" id="pwWpm2" value="300" step="25" min="50"></label>
+      <label>PV specific power [W/kg] <input type="number" id="pwSppv" value="100" step="10" min="10"></label>
+      <label>Battery [Wh/kg] <input type="number" id="pwEb" value="200" step="25" min="50"></label>
+      <label>Depth of discharge <input type="number" id="pwDod" value="0.8" step="0.05" min="0.2" max="1"></label>
+      <label>Round-trip efficiency <input type="number" id="pwEtart" value="0.85" step="0.02" min="0.5" max="1"></label>
+      <label>PMAD efficiency <input type="number" id="pwEtapmad" value="0.95" step="0.01" min="0.7" max="1"></label>
+      <label>PV EOL/BOL fraction <input type="number" id="pwFeol" value="0.85" step="0.02" min="0.5" max="1"></label>
+      <label style="font-size:12px">count PV area in collision cross-section <input type="checkbox" id="pwLink" style="width:auto"></label>
     </fieldset>
 
     <fieldset><legend>ADCS and configuration</legend>
@@ -306,6 +327,38 @@
   </div>
 </section>
 
+<!-- ================= POWER ================= -->
+<section class="tabpane" id="tab-power">
+  <h2>Power subsystem: photovoltaics, eclipse storage, and the second big deployed area</h2>
+  <div class="cardgrid">
+    <div class="card"><div class="l">Sunlight / eclipse</div><div class="v" id="pwSun">&ndash;</div><div class="s">eclipse <span id="pwEclMin"></span> min per orbit (<span id="pwOrbTxt"></span>)</div></div>
+    <div class="card"><div class="l">PV array power</div><div class="v" id="pwPbol">&ndash;</div><div class="s">BOL; EOL requirement <span id="pwPeol"></span> for <span id="pwPtot"></span> bus load</div></div>
+    <div class="card"><div class="l">PV array area</div><div class="v" id="pwApv">&ndash;</div><div class="s"><span id="pwApvKw"></span> m&sup2; per IT kW &middot; vs radiator <span id="pwAr"></span> m&sup2;</div></div>
+    <div class="card"><div class="l">Battery</div><div class="v" id="pwBatt">&ndash;</div><div class="s">at <span id="pwDodTxt"></span> DoD &middot; mass <span id="pwMbatt"></span> kg</div></div>
+    <div class="card"><div class="l">Power subsystem mass</div><div class="v" id="pwMass">&ndash;</div><div class="s">PV <span id="pwMpv"></span> + battery <span id="pwMb2"></span> + PMAD <span id="pwMpmad"></span> kg</div></div>
+    <div class="card"><div class="l">Specific mass</div><div class="v" id="pwSpec">&ndash;</div><div class="s">per kW of IT power</div></div>
+    <div class="card"><div class="l">Total deployed area</div><div class="v" id="pwAtot">&ndash;</div><div class="s">radiator + PV; collision multiplier if PV counted: &times;<span id="pwMult"></span></div></div>
+    <div class="card"><div class="l">Collision coupling</div><div class="v" id="pwLinkState">&ndash;</div><div class="s">toggle "count PV area" in Parameters to propagate</div></div>
+  </div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">
+    <div style="flex:1;min-width:340px">
+      <div class="chartbox"><h3>Deployed area and collision burden vs IT power per satellite (current links)</h3><div style="height:230px"><canvas id="chPower"></canvas></div></div>
+    </div>
+    <div style="flex:1;min-width:340px">
+      <div class="chartbox"><h3>Spacecraft (power subsystem highlighted)</h3>
+        <div class="mini3d" id="power3d"><div class="minihint">drag to rotate &middot; PV array sized by the live model; gray = other subsystems</div></div></div>
+      <p class="footnote">
+        The PV array is the second large deployed surface, and in eclipse-prone orbits it exceeds the
+        radiator. The collision analysis nominally counts radiator area only; enabling the PV-area
+        coupling adds the array to the cross-section, which is the conservative reading
+        (Turyshev's 1 MW anchor carries 5.6 m&sup2;/kW of PV against 2.5 m&sup2;/kW of radiator).
+        Dawn-dusk SSO removes the battery and shrinks the array, which is exactly why that orbit is
+        thermally and electrically attractive; the Collision Avoidance tab prices what it costs.
+      </p>
+    </div>
+  </div>
+</section>
+
 <!-- ================= ADCS ================= -->
 <section class="tabpane" id="tab-adcs">
   <h2>Attitude Determination and Control: the radiator span sets the control problem</h2>
@@ -406,6 +459,7 @@
     <tr><td>Radiator area per IT kilowatt</td><td id="vbArea">&ndash;</td><td>2.5 m&sup2;/kW (1 MW anchor)</td>
         <td>Same physics; ours runs hotter (T_rad <span id="vbTrad"></span>) and radiates both faces, his anchor is more conservative.</td></tr>
     <tr><td>Radiator temperature</td><td id="vbT2">&ndash;</td><td>300-400 K design range</td><td>Inside his range.</td></tr>
+    <tr><td>PV area per IT kilowatt (dawn-dusk)</td><td id="vbPV">&ndash;</td><td>5.64 m&sup2;/kW (BOL, 1 MW high-sunlight anchor)</td><td>Independent reproduction of his PV sizing.</td></tr>
     <tr><td>Radiator areal density</td><td id="vbSig">&ndash;</td><td>2-10 kg/m&sup2;</td><td>Inside his range.</td></tr>
     <tr><td>Thermal-subsystem mass per IT kW</td><td id="vbMass">&ndash;</td><td>~5-25 kg/kW (radiator share of his 29.4 kg/kW PV+storage+radiator floor)</td><td>Consistent.</td></tr>
     <tr><td>Fleet scale context</td><td id="vbFleet">&ndash;</td><td>17-46 GW IT &rarr; 170,000-461,000 nodes at 100 kW</td><td>The reference fleet sits inside his envelope.</td></tr>
@@ -471,6 +525,17 @@ function defaultInputs(){
     th_eps:0.9, th_eta:0.85, th_Tsink:200, th_sigRad:3.5, thermalLink:false,
     // external debris
     db_scale:1.0, db_fcrit:0.3,
+    // power subsystem
+    pw_orbit:"beta0",          // "beta0" worst-case eclipse | "dawndusk" (~eclipse-free SSO)
+    pw_wpm2:300,               // deployed PV areal power at BOL [W/m^2]
+    pw_sppv:100,               // PV specific power [W/kg]
+    pw_eb:200,                 // battery specific energy [Wh/kg]
+    pw_dod:0.8,                // depth of discharge
+    pw_etart:0.85,             // battery round-trip efficiency
+    pw_etapmad:0.95,           // PMAD efficiency
+    pw_feol:0.85,              // PV EOL/BOL power fraction
+    pwLink:false,              // count PV area in the collision cross-section
+    A_rad:120,                 // radiator face area (A may include PV when pwLink)
     // ADCS
     radCfg:"2wing",            // "2wing" | "4panel" | "zfold" (radiator layout)
     adcs_Msat:2500,            // total satellite mass [kg]
@@ -778,6 +843,32 @@ function externalAltitudeCurves(inp){   // fleet rates vs central altitude, 300 
   }
   return {alts, f1, f10};
 }
+/* ================= POWER LAYER =================
+   PV + battery + PMAD sizing for continuous compute through eclipse.
+   Worst-case (beta = 0) eclipse fraction for a circular orbit:
+     f_ecl = asin(R_E / r) / pi ;  dawn-dusk SSO is ~eclipse-free.
+   The array must run the bus in sunlight AND recharge the battery:
+     P_PV,EOL = P_tot/eta_PMAD * [1 + f_ecl/((1-f_ecl) eta_rt)]
+   BOL oversizing by 1/f_EOL; area from the areal power; battery from
+   the eclipse energy at the allowed depth of discharge. */
+function powerModel(inp, th){
+  const r = R_EARTH + 0.5*(inp.hmin+inp.hmax)*1e3;
+  const Torb = 2*Math.PI/Math.sqrt(MU_EARTH/r**3);
+  const fEcl = inp.pw_orbit === "dawndusk" ? 0.0 : Math.asin(R_EARTH/r)/Math.PI;
+  const Ptot = th.Q;                                       // W (all bus power)
+  const Ppv_eol = Ptot/inp.pw_etapmad * (1 + (fEcl>0 ? fEcl/((1-fEcl)*inp.pw_etart) : 0));
+  const Ppv_bol = Ppv_eol/inp.pw_feol;
+  const Apv = Ppv_bol/inp.pw_wpm2;                         // m^2
+  const mPV = Ppv_bol/inp.pw_sppv;                         // kg
+  const Ebatt_Wh = fEcl > 0 ? Ptot*(fEcl*Torb/3600)/(inp.pw_dod*Math.sqrt(inp.pw_etart)) : 0;
+  const mBatt = Ebatt_Wh/inp.pw_eb;
+  const mPMAD = 12*(Ptot/1e3);                             // ~12 kg per kW conditioned
+  return {fEcl, eclMin: fEcl*Torb/60, Ptot, Ppv_eol, Ppv_bol, Apv,
+          mPV, Ebatt_Wh, mBatt, mPMAD, mTotal: mPV+mBatt+mPMAD,
+          specific: (mPV+mBatt+mPMAD)/Math.max(inp.th_PIT_kW,1e-9),
+          ApvPerKw: Apv/Math.max(inp.th_PIT_kW,1e-9)};
+}
+
 /* ================= ADCS LAYER =================
    Disturbance-torque budget and actuator sizing (SMAD-style screening).
    Geometry derives from the radiator configuration, so radiator design,
@@ -799,9 +890,9 @@ function radGeometry(A, cfg){            // panel layout from area and configura
   const wL = (A/2)/wH; return {wH, wL, nWings:2, halfspan: 1+wL};
 }
 function adcsModel(inp, d, th){
-  const g = radGeometry(inp.A, inp.radCfg);
-  // panel mass consistent with the DISPLAYED area (robust if thermalModel returns Inf)
-  const mRad = inp.A*inp.th_sigRad;
+  const Arad = inp.A_rad ?? inp.A;                        // geometry: radiator wings only
+  const g = radGeometry(Arad, inp.radCfg);
+  const mRad = Arad*inp.th_sigRad;
   const mBus = Math.max(inp.adcs_Msat - mRad, 100);
   // inertia: radiator mass distributed from r=1 m to the half-span tip
   const L = Math.max(g.halfspan - 1, 0.2);
@@ -916,10 +1007,26 @@ function readInputs(){
   inp.adcs_dcp = num("aDcp", 1.0, 0, 30);
   inp.adcs_mres = num("aMres", 5, 0, 1e5);
   inp.adcs_act = $("aAct").value;
-  // thermal -> area coupling
+  // power
+  inp.pw_orbit = $("pwOrbit").value;
+  inp.pw_wpm2 = num("pwWpm2", 300, 50, 2000);
+  inp.pw_sppv = num("pwSppv", 100, 10, 1000);
+  inp.pw_eb = num("pwEb", 200, 50, 1000);
+  inp.pw_dod = num("pwDod", 0.8, 0.2, 1);
+  inp.pw_etart = num("pwEtart", 0.85, 0.5, 1);
+  inp.pw_etapmad = num("pwEtapmad", 0.95, 0.7, 1);
+  inp.pw_feol = num("pwFeol", 0.85, 0.5, 1);
+  inp.pwLink = $("pwLink").checked;
+  // thermal -> radiator-area coupling
   if(inp.thermalLink){
-    const th = thermalModel(inp);
-    if(isFinite(th.A) && th.A > 0) inp.A = Number(th.A.toPrecision(3));
+    const thA = thermalModel(inp);
+    if(isFinite(thA.A) && thA.A > 0) inp.A = Number(thA.A.toPrecision(3));
+  }
+  inp.A_rad = inp.A;                       // radiator face area (geometry, thermal)
+  // power -> collision-area coupling: optionally count the PV array
+  if(inp.pwLink){
+    const pv0 = powerModel(inp, thermalModel(inp));
+    if(isFinite(pv0.Apv)) inp.A = Number((inp.A_rad + pv0.Apv).toPrecision(4));
   }
   $("A").disabled = inp.thermalLink;
   return inp;
@@ -941,13 +1048,15 @@ function setTab(id){
     if(typeof resize3D === "function") resize3D();
     if(mvThermal) mvThermal.resize();
     if(mvAdcs) mvAdcs.resize();
+    if(mvPower) mvPower.resize();
+    if(mvMaster) mvMaster.resize();
   }, 30);
   currentTab = id;
 }
 let currentTab = "tab-master";
 
 /* ---------------- charts ---------------- */
-let chSweep, chLat, chVel, chThermal, chExt, chAdcs;
+let chSweep, chLat, chVel, chThermal, chExt, chAdcs, chPower;
 function makeCharts(){
   const gridCol = "rgba(143,160,189,.15)", tickCol = "#8fa0bd";
   const base = (extra) => ({responsive:true, maintainAspectRatio:false, animation:false,
@@ -989,8 +1098,15 @@ function makeCharts(){
     options:base({scales:{
       x:{grid:{color:gridCol},ticks:{color:tickCol},title:{display:true,text:"central altitude [km]",color:tickCol}},
       y:{type:"logarithmic",grid:{color:gridCol},ticks:{color:tickCol},title:{display:true,text:"torque [mN·m]",color:tickCol}}}})});
+  chPower = new Chart($("chPower"), {type:"line", data:{labels:[], datasets:[
+      {label:"total deployed area, radiator + PV [m²]", borderColor:"#2a8be0", data:[], pointRadius:0, borderWidth:2, yAxisID:"y"},
+      {label:"internal collisions/yr (current couplings)", borderColor:"#ffa94d", data:[], pointRadius:0, borderWidth:2, yAxisID:"y2"}]},
+    options:base({scales:{
+      x:{grid:{color:gridCol},ticks:{color:tickCol},title:{display:true,text:"IT power per satellite [kW]",color:tickCol}},
+      y:{grid:{color:gridCol},ticks:{color:"#2a8be0"},title:{display:true,text:"area [m²]",color:"#2a8be0"}},
+      y2:{position:"right",grid:{drawOnChartArea:false},ticks:{color:"#ffa94d"},title:{display:true,text:"collisions/yr",color:"#ffa94d"}}}})});
   chartsByTab = {"tab-collision":[chSweep,chLat,chVel], "tab-thermal":[chThermal],
-                 "tab-external":[chExt], "tab-adcs":[chAdcs]};
+                 "tab-external":[chExt], "tab-adcs":[chAdcs], "tab-power":[chPower]};
 }
 
 /* ---------------- mini 3D views (thermal config, ADCS actuators) ---------------- */
@@ -1028,90 +1144,110 @@ function miniView(containerId){
       cam.aspect = el.clientWidth/el.clientHeight; cam.updateProjectionMatrix();
       ren.setSize(el.clientWidth, el.clientHeight);
     },
+    onTick: null,
     tick(dt){
       if(el.offsetParent === null) return;          // tab hidden: skip
       if(ren.domElement.width === 0) view.resize();
       if(auto){ theta += dt*0.15; setCam(); }
+      if(view.onTick) view.onTick(dt);
       ren.render(scene, cam);
     }
   };
   setCam();
   return view;
 }
-let mvThermal = null, mvAdcs = null;
+let mvThermal = null, mvAdcs = null, mvPower = null, mvMaster = null;
 const pmat = (c, e) => new THREE.MeshPhongMaterial({color:c, emissive:e||0x101418, side:THREE.DoubleSide});
 
-function buildRadiatorSat(group, inp){
-  const g = radGeometry(inp.A, inp.radCfg);
-  group.add(new THREE.Mesh(new THREE.BoxGeometry(2,2,3), pmat(0xc9a227, 0x3a2f08)));
-  const panel = (len, off, rotY) => {
-    const p = new THREE.Mesh(new THREE.BoxGeometry(len, g.wH, 0.12), pmat(0xd7dde8, 0x20242c));
+/* ---- unified spacecraft builder: the SAME vehicle in every tab, with the
+   subsystem under analysis highlighted and the rest dimmed gray ---- */
+const PART_COLORS = {bus:[0xc9a227,0x3a2f08], radiator:[0xd7dde8,0x2a3340],
+                     solar:[0x2a55d0,0x0d1f55], adcs:[0x8fd0a8,0x10301e]};
+function buildSpacecraft(group, inp, ctx, highlight){
+  const dim = [0x49526a, 0x0e1116];
+  const m = part => {
+    const nat = PART_COLORS[part];
+    const on = highlight === "none" || part === highlight;
+    return pmat(on ? nat[0] : dim[0], on ? nat[1] : dim[1]);
+  };
+  // bus
+  group.add(new THREE.Mesh(new THREE.BoxGeometry(2,2,3), m("bus")));
+  // radiators per configuration (along x)
+  const g = radGeometry(inp.A_rad ?? inp.A, inp.radCfg);
+  const panel = (len, off, rotY, mat) => {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(len, g.wH, 0.12), mat);
     p.position.set(Math.cos(rotY)*(off+len/2), 0, Math.sin(rotY)*(off+len/2));
     p.rotation.y = -rotY; return p;
   };
   if(inp.radCfg === "4panel"){
-    for(let k=0;k<4;k++) group.add(panel(g.wL, 1, k*Math.PI/2));
+    for(let k=0;k<4;k++) group.add(panel(g.wL, 1, k*Math.PI/2, m("radiator")));
   } else if(inp.radCfg === "zfold"){
-    // accordion: 3 stacked segments per side, slightly offset
     const seg = g.wL/3;
     for(const s of [1,-1]) for(let k=0;k<3;k++){
-      const p = new THREE.Mesh(new THREE.BoxGeometry(seg, g.wH, 0.1), pmat(0xd7dde8, 0x20242c));
+      const p = new THREE.Mesh(new THREE.BoxGeometry(seg, g.wH, 0.1), m("radiator"));
       p.position.set(s*(1+seg/2+0.15*k), 0, (k-1)*0.45); group.add(p);
     }
   } else {
-    group.add(panel(g.wL, 1, 0)); group.add(panel(g.wL, 1, Math.PI));
+    group.add(panel(g.wL, 1, 0, m("radiator")));
+    group.add(panel(g.wL, 1, Math.PI, m("radiator")));
   }
-  group.position.y = Math.max(g.wH/2+1.2, 3);
-  const lbl = textSprite(`${inp.radCfg}: span ${(2*g.halfspan).toFixed(1)} m · ${fmt(inp.A,3)} m² total`, 22);
-  lbl.position.set(0, group.position.y + g.wH/2 + 2.5, 0); group.add(lbl);
-}
-
-function buildAdcsSat(group, inp, ad){
-  group.add(new THREE.Mesh(new THREE.BoxGeometry(2,2,3), pmat(0xc9a227, 0x3a2f08)));
-  // stub radiator roots to give context
+  // solar arrays sized by the live power model (along z, slight sun tilt)
+  const Apv = (ctx && ctx.pv && isFinite(ctx.pv.Apv)) ? ctx.pv.Apv : (inp.A_rad ?? inp.A)/2;
+  const wPv = Math.min(8, Math.max(1.2, Math.sqrt(Apv/2)/2.2));
+  const lPv = (Apv/2)/wPv;
   for(const s of [1,-1]){
-    const p = new THREE.Mesh(new THREE.BoxGeometry(2.5, Math.min(ad.g.wH,3), 0.1), pmat(0x6b7687, 0x14181f));
-    p.position.x = s*2.2; group.add(p);
+    const p = new THREE.Mesh(new THREE.BoxGeometry(wPv, 0.08, lPv), m("solar"));
+    p.position.set(0, 0.4, s*(1.5+lPv/2+0.5)); p.rotation.z = 0.15; group.add(p);
   }
-  const Hs = Math.min(Math.max(ad.Hreq, 2), 300);
+  // ADCS suite
+  const ad = ctx && ctx.ad;
+  const Hs = ad ? Math.min(Math.max(ad.Hreq, 2), 300) : 20;
   if(inp.adcs_act === "cmg"){
-    const r = 0.35 + 0.12*Math.log10(Hs+1)*2;
+    const r = 0.35 + 0.24*Math.log10(Hs+1);
     for(let k=0;k<4;k++){
       const a = k*Math.PI/2 + Math.PI/4;
-      const cmg = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 14), pmat(0x8fa0bd, 0x1a2030));
-      cmg.position.set(1.35*Math.cos(a), -1.3, 1.35*Math.sin(a));
-      group.add(cmg);
-      const gim = new THREE.Mesh(new THREE.TorusGeometry(r*1.25, 0.05, 8, 24), pmat(0x5aa9ff, 0x0d2034));
+      const cmg = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 14), m("adcs"));
+      cmg.position.set(1.35*Math.cos(a), -1.3, 1.35*Math.sin(a)); group.add(cmg);
+      const gim = new THREE.Mesh(new THREE.TorusGeometry(r*1.25, 0.05, 8, 24), m("adcs"));
       gim.position.copy(cmg.position); gim.rotation.x = Math.PI/2 + (k%2?0.5:-0.5); group.add(gim);
     }
   } else {
-    const r = 0.22 + 0.10*Math.log10(Hs+1)*2;
+    const r = 0.22 + 0.20*Math.log10(Hs+1);
     for(let k=0;k<4;k++){
       const a = k*Math.PI/2 + Math.PI/4;
-      const w = new THREE.Mesh(new THREE.CylinderGeometry(r, r, r*0.7, 20), pmat(0x8fa0bd, 0x1a2030));
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(r, r, r*0.7, 20), m("adcs"));
       w.position.set(1.1*Math.cos(a), -1.25, 1.1*Math.sin(a));
-      w.rotation.set(0.6*Math.cos(a), 0, 0.6*Math.sin(a));     // pyramid cant
+      w.rotation.set(0.6*Math.cos(a), 0, 0.6*Math.sin(a));
       group.add(w);
     }
   }
   if(inp.adcs_act === "thr"){
     for(const [x,z] of [[1.2,1.7],[-1.2,1.7],[1.2,-1.7],[-1.2,-1.7]]){
-      const t = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.45, 12), pmat(0xff8a5a, 0x301008));
+      const t = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.45, 12), m("adcs"));
       t.position.set(x, 1.15, z); t.rotation.x = Math.PI; group.add(t);
     }
   } else {
-    const rodLen = 1.2 + 0.5*Math.log10(Math.max(ad.mtq.dipole,1));
-    const rod = ax => { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,rodLen,10), pmat(0x39c98e, 0x0c2c1e));
-      if(ax==="x") m.rotation.z = Math.PI/2; if(ax==="z") m.rotation.x = Math.PI/2;
-      m.position.y = 1.15; return m; };
-    group.add(rod("x")); group.add(rod("y")); group.add(rod("z"));
+    const rodLen = ad ? 1.2 + 0.5*Math.log10(Math.max(ad.mtq.dipole,1)) : 2;
+    for(const ax of ["x","y","z"]){
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,rodLen,10), m("adcs"));
+      if(ax==="x") rod.rotation.z = Math.PI/2; if(ax==="z") rod.rotation.x = Math.PI/2;
+      rod.position.y = 1.15; group.add(rod);
+    }
   }
-  const st = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.18, 0.5, 12), pmat(0x1b2f6e, 0x0a1330));
+  const st = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.18, 0.5, 12), m("adcs"));
   st.position.set(0.7, 1.25, -1.2); st.rotation.x = -0.5; group.add(st);
-  group.position.y = 3;
-  const names = {rw:"4× RW pyramid + 3× magnetorquers", cmg:"4× CMG + 3× magnetorquers", thr:"4× RW + thruster desaturation"};
-  const lbl = textSprite(`${names[inp.adcs_act]} · H = ${fmt(ad.Hreq,3)} N·m·s`, 16);
-  lbl.position.set(0, 6.6, 0); group.add(lbl);
+  // lift above the grid and label
+  const lift = Math.max(g.wH/2 + 1.2, 3);
+  group.position.y = lift;
+  const labels = {
+    thermal: `radiators (${inp.radCfg}): ${fmt(inp.A_rad ?? inp.A,3)} m² · span ${(2*g.halfspan).toFixed(1)} m`,
+    power:   `PV array: ${fmt(Apv,3)} m² · radiators gray for scale`,
+    adcs:    `${({rw:"4× RW + MTQ",cmg:"4× CMG + MTQ",thr:"4× RW + thrusters"})[inp.adcs_act]} · H = ${ad?fmt(ad.Hreq,3):"–"} N·m·s`,
+    none:    `AI1 satellite · radiators ${fmt(inp.A_rad ?? inp.A,3)} m² · PV ${fmt(Apv,3)} m²`
+  };
+  const lbl = textSprite(labels[highlight] || labels.none, 26);
+  lbl.position.set(0, lift + g.wH/2 + 3, 0); group.add(lbl);
+  return {halfspan: Math.max(g.halfspan, 1.5+lPv+0.5)};
 }
 
 function updateCharts(inp, kep){
@@ -1239,7 +1375,8 @@ function init3D(){
     const c = camStates[activeView];
     c.dist = Math.min(c.max, Math.max(c.min, c.dist*(1+e.deltaY*0.001))); updateCam(); }, {passive:false});
   window.addEventListener("resize", ()=>{ resize3D();
-    if(mvThermal) mvThermal.resize(); if(mvAdcs) mvAdcs.resize(); });
+    if(mvThermal) mvThermal.resize(); if(mvAdcs) mvAdcs.resize(); if(mvPower) mvPower.resize();
+    if(mvMaster) mvMaster.resize(); });
 
   const setView = v => { activeView = v;
     $("tabConst").classList.toggle("active", v==="const");
@@ -1335,7 +1472,7 @@ function textSprite(txt, scaleM){
   sp.scale.set(scaleM, scaleM*80/512, 1);
   return sp;
 }
-function rebuildCAD(inp){
+function rebuildCAD(inp, ctx){
   if(!sceneCAD) return;
   if(cadGroup){
     sceneCAD.remove(cadGroup);
@@ -1345,22 +1482,11 @@ function rebuildCAD(inp){
   cadGroup = new THREE.Group();
   const mat = (c, extra={}) => new THREE.MeshPhongMaterial({color:c, ...extra});
 
-  const A = inp.A;
-  const wH = Math.min(6, Math.max(1.2, Math.sqrt(A/2)/2));
-  const wL = (A/2)/wH;
-  const cy = Math.max(wH/2 + 1.5, 3);
+  // the same unified spacecraft as the subsystem tabs, nothing dimmed
   const sat = new THREE.Group();
-  sat.add(new THREE.Mesh(new THREE.BoxGeometry(2,2,3), mat(0xc9a227, {emissive:0x3a2f08})));
-  const wing = (sx) => { const w = new THREE.Mesh(new THREE.BoxGeometry(wL, wH, 0.12),
-      mat(0xd7dde8, {emissive:0x20242c, side:THREE.DoubleSide})); w.position.x = sx*(1+wL/2); return w; };
-  sat.add(wing(1)); sat.add(wing(-1));
-  const sL = (A/2)/Math.max(wH*0.8, 1);
-  const solar = new THREE.Mesh(new THREE.BoxGeometry(wH*0.8, 0.08, sL), mat(0x1b2f6e, {emissive:0x0a1330}));
-  solar.position.z = 1.5 + sL/2 + 0.5; sat.add(solar);
-  sat.position.y = cy;
+  const ext = buildSpacecraft(sat, inp, ctx, "none");
   cadGroup.add(sat);
-  const lbl = textSprite(`AI1 compute satellite · radiators ${fmt(A,3)} m² · span ${(2+2*wL).toFixed(0)} m`, 30);
-  lbl.position.set(0, cy + wH/2 + 3, 0); cadGroup.add(lbl);
+  const wL = Math.max(ext.halfspan - 1, 2);
 
   const refs = [];
   const off = wL + 14;
@@ -1428,6 +1554,86 @@ function animate(ts){
   if(mainVisible) renderer.render(activeView === "cad" ? sceneCAD : scene, camera);
   if(mvThermal) mvThermal.tick(dt);
   if(mvAdcs) mvAdcs.tick(dt);
+  if(mvPower) mvPower.tick(dt);
+  if(mvMaster) mvMaster.tick(dt);
+}
+
+/* ---- master tab: fleet-and-vehicle combo scene ---- */
+function buildMasterScene(inp, ctx, kepE){
+  if(!mvMaster) return;
+  const RE3 = 5;                                    // Earth radius in scene units
+  const M = 420;
+  const sim = {RE3, M, t:0, boomT:0, pts:null, els:null, booms:[]};
+  mvMaster.rebuild(group=>{
+    const earth = new THREE.Mesh(new THREE.SphereGeometry(RE3, 40, 28),
+      new THREE.MeshPhongMaterial({color:0x1d3a6e, emissive:0x0a1830, shininess:8}));
+    earth.position.y = 3; group.add(earth);
+    const grid = new THREE.Mesh(new THREE.SphereGeometry(RE3*1.002, 30, 20),
+      new THREE.MeshBasicMaterial({color:0x2c4f8c, wireframe:true, transparent:true, opacity:0.18}));
+    grid.position.y = 3; group.add(grid);
+    // sampled population (same element distributions as the main view)
+    const d = derive(inp);
+    let rnd = 777; const rand = ()=>{ rnd = (rnd*1664525+1013904223)>>>0; return rnd/4294967296; };
+    const wsum = inp.mix.reduce((a,[,w])=>a+w,0);
+    const inc=new Float64Array(M), raan=new Float64Array(M), u0=new Float64Array(M),
+          rr=new Float64Array(M), nm=new Float64Array(M);
+    for(let k=0;k<M;k++){
+      raan[k]=rand()*2*Math.PI; u0[k]=rand()*2*Math.PI;
+      rr[k]=Math.cbrt(d.Rint**3 + rand()*(d.Rest**3-d.Rint**3));
+      if(inp.ssoMode){ const iS=ssoInclination(rr[k]); inc[k]=isFinite(iS)?iS:Math.PI/2; }
+      else { let p2=rand()*wsum,q=0; for(let j=0;j<inp.mix.length;j++){p2-=inp.mix[j][1];if(p2<=0){q=j;break;}}
+             inc[k]=inp.mix[q][0]*Math.PI/180; }
+      nm[k]=Math.sqrt(MU_EARTH/rr[k]**3);
+    }
+    sim.els = {inc, raan, u0, rr, nm};
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(M*3), 3));
+    sim.pts = new THREE.Points(geo, new THREE.PointsMaterial({color:0x8cd2ff, size:0.09, sizeAttenuation:true}));
+    group.add(sim.pts);
+    sim.group = group;
+    const l1 = textSprite(`the fleet: N = ${inp.N.toLocaleString("en-US")} · ${fmt(kepE,3)} natural collisions/yr`, 9);
+    l1.position.set(0, 9.6, 0); group.add(l1);
+    // the vehicle, exaggerated, floating beside
+    const sat = new THREE.Group();
+    buildSpacecraft(sat, inp, ctx, "none");
+    sat.scale.set(0.13, 0.13, 0.13);
+    sat.position.set(RE3 + 6.5, 1.8, 0);
+    group.add(sat);
+    const l2 = textSprite("the vehicle (not to scale)", 6);
+    l2.position.set(RE3 + 6.5, 4.6, 0); group.add(l2);
+  }, 24);
+  mvMaster.onTick = dt => {
+    if(!sim.pts || !sim.els) return;
+    sim.t += dt*parseFloat($("TS").value);
+    const pos = sim.pts.geometry.attributes.position.array;
+    const {inc, raan, u0, rr, nm} = sim.els;
+    for(let k=0;k<M;k++){
+      const u = u0[k] + nm[k]*sim.t;
+      const cu=Math.cos(u), su=Math.sin(u), cO=Math.cos(raan[k]), sO=Math.sin(raan[k]),
+            ci=Math.cos(inc[k]), si=Math.sin(inc[k]), R=RE3*rr[k]/R_EARTH;
+      pos[3*k]   = R*(cO*cu - sO*su*ci);
+      pos[3*k+2] = -R*(sO*cu + cO*su*ci);
+      pos[3*k+1] = 3 + R*(su*si);
+    }
+    sim.pts.geometry.attributes.position.needsUpdate = true;
+    // statistical collision flashes, slowed to stay legible
+    sim.boomT += dt;
+    if(riskCDF && evRate > 0 && sim.boomT > 3 && Math.random() < dt/3){
+      sim.boomT = 0;
+      const u = Math.random(); let lo=0, hi=riskCDF.length-1;
+      while(lo<hi){ const mid=(lo+hi)>>1; (riskCDF[mid]<u)?lo=mid+1:hi=mid; }
+      const lat = (-89.5+179*lo/(riskCDF.length-1))*Math.PI/180, lon = Math.random()*2*Math.PI;
+      const R = RE3*((bandRint+bandRest)/2)/R_EARTH;
+      const sp = new THREE.Sprite(boomMaterial().clone());
+      sp.position.set(R*Math.cos(lat)*Math.cos(lon), 3+R*Math.sin(lat), R*Math.cos(lat)*Math.sin(lon));
+      sp.scale.set(1.1,1.1,1); sim.group.add(sp);
+      sim.booms.push({sp, exp: performance.now()/1000 + 2.5});
+    }
+    const now = performance.now()/1000;
+    for(let k=sim.booms.length-1;k>=0;k--)
+      if(sim.booms[k].exp < now){ sim.group.remove(sim.booms[k].sp);
+        sim.booms[k].sp.material.dispose(); sim.booms.splice(k,1); }
+  };
 }
 
 /* ---------------- update cycle ---------------- */
@@ -1552,8 +1758,53 @@ function refresh(){
   chAdcs.data.datasets[2].data = tq.sr;
   chAdcs.data.datasets[3].data = tq.mg;
   chAdcs.update();
-  if(mvThermal) mvThermal.rebuild(g2=>buildRadiatorSat(g2, inp), Math.max(24, 2.2*radGeometry(inp.A, inp.radCfg).halfspan));
-  if(mvAdcs) mvAdcs.rebuild(g2=>buildAdcsSat(g2, inp, ad), 14);
+
+  /* --- power tab --- */
+  const pv = powerModel(inp, th);
+  $("pwSun").textContent = ((1-pv.fEcl)*100).toFixed(0)+"% sun";
+  $("pwEclMin").textContent = pv.eclMin.toFixed(0);
+  $("pwOrbTxt").textContent = inp.pw_orbit==="dawndusk" ? "dawn-dusk SSO" : "worst case β=0";
+  $("pwPbol").textContent = fmt(pv.Ppv_bol/1e3,3)+" kW";
+  $("pwPeol").textContent = fmt(pv.Ppv_eol/1e3,3)+" kW";
+  $("pwPtot").textContent = fmt(pv.Ptot/1e3,3)+" kW";
+  $("pwApv").textContent = fmt(pv.Apv,3)+" m²";
+  $("pwApvKw").textContent = pv.ApvPerKw.toFixed(2);
+  $("pwAr").textContent = fmt(inp.A_rad,3);
+  $("pwBatt").textContent = fmt(pv.Ebatt_Wh/1e3,3)+" kWh";
+  $("pwMbatt").textContent = fmt(pv.mBatt,3);
+  $("pwDodTxt").textContent = (inp.pw_dod*100).toFixed(0)+"%";
+  $("pwMass").textContent = fmt(pv.mTotal,3)+" kg";
+  $("pwMpv").textContent = fmt(pv.mPV,3);
+  $("pwMb2").textContent = fmt(pv.mBatt,3);
+  $("pwMpmad").textContent = fmt(pv.mPMAD,3);
+  $("pwSpec").textContent = fmt(pv.specific,3)+" kg/kW";
+  $("pwAtot").textContent = fmt(inp.A_rad + pv.Apv,3)+" m²";
+  $("pwMult").textContent = ((inp.A_rad + pv.Apv)/Math.max(inp.A_rad,1e-9)).toFixed(2);
+  $("pwLinkState").textContent = inp.pwLink ? "PV counted" : "radiator only";
+  // sweep: deployed area and collisions vs IT power (radiator follows thermal law)
+  const Px=[], Aarea=[], Ecoll=[];
+  for(let k=0;k<=24;k++){
+    const P = 10**(1 + 2*k/24);
+    const th2 = thermalModel({...inp, th_PIT_kW:P});
+    const pv2 = powerModel({...inp, th_PIT_kW:P}, th2);
+    const Ar2 = inp.thermalLink ? th2.A : inp.A_rad;
+    if(!isFinite(Ar2) || !isFinite(pv2.Apv)){ Px.push(P); Aarea.push(null); Ecoll.push(null); continue; }
+    const Acoll2 = Ar2 + (inp.pwLink ? pv2.Apv : 0);
+    Px.push(P); Aarea.push(Ar2 + pv2.Apv);
+    Ecoll.push(kep.E/inp.Tyr * Acoll2/inp.A);
+  }
+  chPower.data.labels = Px.map(p=>p.toFixed(0));
+  chPower.data.datasets[0].data = Aarea;
+  chPower.data.datasets[1].data = Ecoll;
+  chPower.update();
+
+  /* --- unified spacecraft views (same vehicle, different highlight) --- */
+  const ctx = {th, pv, ad};
+  const camD = 2.2*Math.max(radGeometry(inp.A_rad, inp.radCfg).halfspan, 10);
+  if(mvThermal) mvThermal.rebuild(g2=>buildSpacecraft(g2, inp, ctx, "thermal"), camD);
+  if(mvPower) mvPower.rebuild(g2=>buildSpacecraft(g2, inp, ctx, "power"), camD);
+  if(mvAdcs) mvAdcs.rebuild(g2=>buildSpacecraft(g2, inp, ctx, "adcs"), Math.max(16, camD*0.6));
+  lastCtx = ctx;
 
   /* --- master tab --- */
   $("mEk").textContent = fmt(kep.E/inp.Tyr,3);
@@ -1600,8 +1851,10 @@ function refresh(){
   bandRint = kep.d.Rint; bandRest = kep.d.Rest;
 
   rebuildSats(inp);
-  rebuildCAD(inp);
+  rebuildCAD(inp, lastCtx);
+  buildMasterScene(inp, lastCtx, kep.E/inp.Tyr);
 }
+let lastCtx = null;
 
 function schedule(){ clearTimeout(pending); pending = setTimeout(refresh, 120); }
 
@@ -1641,6 +1894,8 @@ function fillValidation(){
   $("vbTrad").textContent = th.Trad.toFixed(0)+" K";
   $("vbT2").textContent = th.Trad.toFixed(0)+" K ("+(th.Trad-273.15).toFixed(0)+" °C)";
   $("vbSig").textContent = inp.th_sigRad+" kg/m²";
+  const pvDD = powerModel({...inp, pw_orbit:"dawndusk"}, th);
+  $("vbPV").textContent = pvDD.ApvPerKw.toFixed(2)+" m²/kW";
   $("vbMass").textContent = th.specific.toFixed(1)+" kg/kW";
   $("vbFleet").textContent = inp.N.toLocaleString("en-US")+" × "+inp.th_PIT_kW+" kW = "
     +(inp.N*inp.th_PIT_kW/1e6).toFixed(1)+" GW IT";
@@ -1650,6 +1905,8 @@ window.addEventListener("load", ()=>{
   makeCharts(); init3D(); fillValidation();
   mvThermal = miniView("thermal3d");
   mvAdcs = miniView("adcs3d");
+  mvPower = miniView("power3d");
+  mvMaster = miniView("master3d");
   document.querySelectorAll("nav#tabs button").forEach(b=>
     b.addEventListener("click", ()=>setTab(b.dataset.tab)));
   $("pinParams").addEventListener("change", ()=>setTab(currentTab));
