@@ -32,7 +32,7 @@
 supervision of A. Golkar) and is currently undergoing verification.
 Do not trust the model results unless manually verified.</div>
 <main>
-  <h1>Can 80,000 computing satellites share low Earth orbit without crashing into each other?</h1>
+  <h1>Can 100,000+ computing satellites share low Earth orbit without crashing into each other?</h1>
   <p class="sub">A plain-language guide to the AI Mega-Constellation Explorer</p>
   <p>
     <a class="btn" href="index.html">Open the interactive model</a>
@@ -45,7 +45,7 @@ Do not trust the model results unless manually verified.</div>
     Several organizations are proposing to move data centers into space: fleets of tens of
     thousands of satellites doing AI computation in orbit. Computers produce heat, and in
     space the only way to get rid of heat is to radiate it away from large panels. Large
-    panels make large targets. This tool started with a simple question: if you fly 80,000
+    panels make large targets. This tool started with a simple question: if you fly 100,000
     satellites, each the size of half a tennis court, in the same band of low Earth orbit,
     how often would they collide? It has since grown into an end-to-end systems model: the
     same parameter set sizes the cooling system, the solar arrays and batteries, and the
@@ -55,12 +55,12 @@ Do not trust the model results unless manually verified.</div>
 
   <h2>The headline answer</h2>
   <div class="card">
-    <div class="big">About 2,000 collisions per year, if nobody steered.</div>
+    <div class="big">About 3,000 collisions per year, if nobody steered.</div>
     <p class="dim" style="margin-bottom:0">
-      Each satellite would have roughly a 5% chance per year of being hit. This is the
+      Each satellite would have roughly a 6% chance per year of being hit. This is the
       "natural" rate: it measures how hard the collision-avoidance autopilot must work,
       not how many collisions actually happen. With avoidance that succeeds 99.9% of the
-      time, actual losses drop to about 2 per year.
+      time, actual losses drop to about 3 per year.
     </p>
   </div>
   <p>Four consequences follow from the physics, and they do not depend on fine details:</p>
@@ -83,7 +83,7 @@ Do not trust the model results unless manually verified.</div>
     the number of satellites. And the radiator is not even the biggest surface: the solar
     array that powers the computers is several times larger (about 716 m&sup2; for an 80 kW
     satellite in an eclipse-prone orbit). Counting it raises the collision workload roughly
-    sevenfold, to about 13,500 per year. Every additional unit of computing power in orbit
+    sevenfold, to about 21,000 per year. Every additional unit of computing power in orbit
     carries a proportional collision tax, and it is charged on the full wingspan.
   </p>
   <p>
@@ -126,7 +126,7 @@ Do not trust the model results unless manually verified.</div>
     <strong>Some debris cannot be dodged.</strong> Beyond collisions between the satellites
     themselves, the fleet flies through existing debris. Trackable objects add workload the
     autopilot can handle; the centimeter-class fragments too small to track cannot be avoided
-    at all, and at this fleet size they would strike about 5,500 times per year. Only damage
+    at all, and at this fleet size they would strike about 6,800 times per year. Only damage
     tolerance in the design (segmented radiators, shielding) reduces what those hits cost.
   </p>
   <p>
