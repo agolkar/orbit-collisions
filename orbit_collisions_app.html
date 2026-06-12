@@ -115,9 +115,9 @@
     <div class="card"><div class="l">Radiator root temperature</div><div class="v" id="mTrad">&ndash;</div><div class="s">GPU junction <span id="mTj"></span> &middot; thermal mass <span id="mMass"></span> kg/sat</div></div>
   </div>
   <div class="verdict" id="mVerdict">&ndash;</div>
-  <div class="chartbox" style="margin-top:10px"><h3>The two scales of the problem: the fleet and the vehicle</h3>
-    <div class="mini3d" id="master3d" style="height:320px">
-      <div class="minihint">drag to rotate &middot; live orbits (sampled, true Keplerian motion) &middot; 💥 statistical collisions at the model rate &middot; vehicle not to scale</div>
+  <div class="chartbox" style="margin-top:10px"><h3>System map: the spacecraft exploded by subsystem (click a subsystem to open its tab)</h3>
+    <div class="mini3d" id="master3d" style="height:max(420px,52vh)">
+      <div class="minihint">drag to rotate &middot; wheel to zoom &middot; click a subsystem to open its tab &middot; all numbers live from the current parameter set</div>
     </div>
   </div>
   <p class="footnote">
@@ -1134,9 +1134,21 @@ function miniView(containerId, opts={}){
   const dl = new THREE.DirectionalLight(0xffffff, 0.85); dl.position.set(40,60,30); scene.add(dl);
   if(opts.grid !== false) scene.add(new THREE.GridHelper(80, 16, 0x33486e, 0x1b2940));
   let group = null, theta = 0.7, phi = 0.32, dist = 36, drag=false, px=0, py=0, auto=true;
+  let downX=0, downY=0;
   const setCam = ()=>{ cam.position.set(dist*Math.cos(phi)*Math.sin(theta), 4+dist*Math.sin(phi),
                        dist*Math.cos(phi)*Math.cos(theta)); cam.lookAt(0,3,0); };
-  el.addEventListener("mousedown", e=>{drag=true; auto=false; px=e.clientX; py=e.clientY;});
+  el.addEventListener("click", e=>{
+    if(Math.hypot(e.clientX-downX, e.clientY-downY) > 6 || !view.onObjectClick) return;
+    const r = el.getBoundingClientRect();
+    const ndc = new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
+    const rc = new THREE.Raycaster(); rc.setFromCamera(ndc, cam);
+    const hits = rc.intersectObjects(scene.children, true);
+    for(const h of hits){
+      let o = h.object;
+      while(o){ if(o.userData && o.userData.tab){ view.onObjectClick(o.userData.tab); return; } o = o.parent; }
+    }
+  });
+  el.addEventListener("mousedown", e=>{drag=true; auto=false; px=e.clientX; py=e.clientY; downX=e.clientX; downY=e.clientY;});
   window.addEventListener("mouseup", ()=>drag=false);
   el.addEventListener("mousemove", e=>{ if(!drag) return;
     theta -= (e.clientX-px)*0.006; phi = Math.min(1.3, Math.max(-0.1, phi+(e.clientY-py)*0.006));
@@ -1157,7 +1169,7 @@ function miniView(containerId, opts={}){
       cam.aspect = el.clientWidth/el.clientHeight; cam.updateProjectionMatrix();
       ren.setSize(el.clientWidth, el.clientHeight);
     },
-    onTick: null,
+    onTick: null, onObjectClick: null,
     tick(dt){
       if(el.offsetParent === null) return;          // tab hidden: skip
       if(ren.domElement.width === 0) view.resize();
@@ -1679,83 +1691,72 @@ function animate(ts){
   if(mvMaster) mvMaster.tick(dt);
 }
 
-/* ---- master tab: fleet-and-vehicle combo scene ---- */
-function buildMasterScene(inp, ctx, kepE){
+/* ---- master tab: exploded spacecraft system map (click a subsystem -> its tab) ---- */
+function buildMasterScene(inp, ctx, kep){
   if(!mvMaster) return;
-  const RE3 = 5;                                    // Earth radius in scene units
-  const M = 420;
-  const sim = {RE3, M, t:0, boomT:0, pts:null, els:null, booms:[]};
+  const th = ctx && ctx.th, pv = ctx && ctx.pv, ad = ctx && ctx.ad;
+  const g = radGeometry(inp.A_rad ?? inp.A, inp.radCfg);
+  const EXP = Math.max(5, g.wH + 3);                 // explosion offset
   mvMaster.rebuild(group=>{
-    const earth = new THREE.Mesh(new THREE.SphereGeometry(RE3, 56, 40), earthMaterial());
-    earth.position.y = 3; group.add(earth);
-    const atmo = new THREE.Mesh(new THREE.SphereGeometry(RE3*1.045, 44, 32), atmoMaterial());
-    atmo.position.y = 3; group.add(atmo);
-    group.add(starField(120, 900));
-    // sampled population (same element distributions as the main view)
-    const d = derive(inp);
-    let rnd = 777; const rand = ()=>{ rnd = (rnd*1664525+1013904223)>>>0; return rnd/4294967296; };
-    const wsum = inp.mix.reduce((a,[,w])=>a+w,0);
-    const inc=new Float64Array(M), raan=new Float64Array(M), u0=new Float64Array(M),
-          rr=new Float64Array(M), nm=new Float64Array(M);
-    for(let k=0;k<M;k++){
-      raan[k]=rand()*2*Math.PI; u0[k]=rand()*2*Math.PI;
-      rr[k]=Math.cbrt(d.Rint**3 + rand()*(d.Rest**3-d.Rint**3));
-      if(inp.ssoMode){ const iS=ssoInclination(rr[k]); inc[k]=isFinite(iS)?iS:Math.PI/2; }
-      else { let p2=rand()*wsum,q=0; for(let j=0;j<inp.mix.length;j++){p2-=inp.mix[j][1];if(p2<=0){q=j;break;}}
-             inc[k]=inp.mix[q][0]*Math.PI/180; }
-      nm[k]=Math.sqrt(MU_EARTH/rr[k]**3);
+    group.add(starField(300, 700));
+    const cy = 6;
+    const leader = (from, to) => {
+      const lg = new THREE.BufferGeometry().setFromPoints([from, to]);
+      return new THREE.Line(lg, new THREE.LineBasicMaterial({color:0x44506a, transparent:true, opacity:0.7}));
+    };
+    // BUS (collision identity of the whole craft) at center
+    const bus = new THREE.Group(); bus.userData.tab = "tab-collision";
+    bus.add(new THREE.Mesh(new THREE.BoxGeometry(2,2,3), pmat(...PART_COLORS.bus)));
+    bus.position.y = cy; group.add(bus);
+    const lBus = textSprite(`COLLISION · σ = ${fmt(derive(inp).sigma,3)} m² · ${fmt(kep.E/inp.Tyr,3)} nat /yr · residual ${fmt(kep.Eres/inp.Tyr,2)}`, 26);
+    lBus.position.set(0, cy + 3.2, 0); group.add(lBus);
+    // RADIATORS exploded along ±x
+    const rad = new THREE.Group(); rad.userData.tab = "tab-thermal";
+    const wing = sx => { const p = new THREE.Mesh(new THREE.BoxGeometry(g.wL, g.wH, 0.12), pmat(...PART_COLORS.radiator));
+      p.position.x = sx*(1+g.wL/2); return p; };
+    if(inp.radCfg === "4panel"){ for(let k=0;k<4;k++){ const p = wing(1); p.rotation.y = k*Math.PI/2;
+        p.position.set(Math.cos(k*Math.PI/2)*(1+g.wL/2), 0, Math.sin(k*Math.PI/2)*(1+g.wL/2)); rad.add(p);} }
+    else { rad.add(wing(1)); rad.add(wing(-1)); }
+    rad.position.set(EXP + g.wL*0.2, cy, 0); group.add(rad);
+    group.add(leader(new THREE.Vector3(1.2, cy, 0), new THREE.Vector3(rad.position.x - g.wL*0.4, cy, 0)));
+    const lRad = textSprite(`THERMAL · radiators ${fmt(inp.A_rad,3)} m² @ ${th?th.Trad.toFixed(0):"–"} K · ${th?fmt(th.Q/1e3,3):"–"} kW rejected`, 26);
+    lRad.position.set(rad.position.x, cy + g.wH/2 + 2.6, 0); group.add(lRad);
+    // SOLAR exploded along ±z
+    const Apv = pv && isFinite(pv.Apv) ? pv.Apv : 400;
+    const wPv = Math.min(8, Math.max(1.2, Math.sqrt(Apv/2)/2.2)), lPv = (Apv/2)/wPv;
+    const sol = new THREE.Group(); sol.userData.tab = "tab-power";
+    for(const s of [1,-1]){
+      const p = new THREE.Mesh(new THREE.BoxGeometry(wPv, 0.08, lPv), pmat(...PART_COLORS.solar));
+      p.position.z = s*(lPv/2 + 0.6); sol.add(p);
     }
-    sim.els = {inc, raan, u0, rr, nm};
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(M*3), 3));
-    sim.pts = new THREE.Points(geo, new THREE.PointsMaterial({color:0x8cd2ff, size:0.22,
-      map:glowTexture(), sizeAttenuation:true, transparent:true,
-      blending:THREE.AdditiveBlending, depthWrite:false}));
-    group.add(sim.pts);
-    sim.group = group;
-    const l1 = textSprite(`the fleet: N = ${inp.N.toLocaleString("en-US")} · ${fmt(kepE,3)} natural collisions/yr`, 9);
-    l1.position.set(0, 9.6, 0); group.add(l1);
-    // the vehicle, exaggerated, floating beside
-    const sat = new THREE.Group();
-    buildSpacecraft(sat, inp, ctx, "none");
-    sat.scale.set(0.13, 0.13, 0.13);
-    sat.position.set(RE3 + 6.5, 1.8, 0);
-    group.add(sat);
-    const l2 = textSprite("the vehicle (not to scale)", 6);
-    l2.position.set(RE3 + 6.5, 4.6, 0); group.add(l2);
-  }, 24);
-  mvMaster.onTick = dt => {
-    if(!sim.pts || !sim.els) return;
-    sim.t += dt*parseFloat($("TS").value);
-    const pos = sim.pts.geometry.attributes.position.array;
-    const {inc, raan, u0, rr, nm} = sim.els;
-    for(let k=0;k<M;k++){
-      const u = u0[k] + nm[k]*sim.t;
-      const cu=Math.cos(u), su=Math.sin(u), cO=Math.cos(raan[k]), sO=Math.sin(raan[k]),
-            ci=Math.cos(inc[k]), si=Math.sin(inc[k]), R=RE3*rr[k]/R_EARTH;
-      pos[3*k]   = R*(cO*cu - sO*su*ci);
-      pos[3*k+2] = -R*(sO*cu + cO*su*ci);
-      pos[3*k+1] = 3 + R*(su*si);
+    sol.position.set(-EXP - 2, cy, 0); sol.rotation.y = 0.25; group.add(sol);
+    group.add(leader(new THREE.Vector3(-1.2, cy, 0), new THREE.Vector3(sol.position.x + 2, cy, 0)));
+    const lSol = textSprite(`POWER · PV ${fmt(Apv,3)} m² · ${pv?fmt(pv.Ppv_bol/1e3,3):"–"} kW BOL · battery ${pv?fmt(pv.Ebatt_Wh/1e3,2):"–"} kWh`, 26);
+    lSol.position.set(sol.position.x, cy + 2.8, 0); group.add(lSol);
+    // ADCS exploded downward
+    const act = new THREE.Group(); act.userData.tab = "tab-adcs";
+    const Hs = ad ? Math.min(Math.max(ad.Hreq, 2), 300) : 20;
+    const rw = 0.25 + 0.22*Math.log10(Hs+1);
+    for(let k=0;k<4;k++){
+      const a = k*Math.PI/2 + Math.PI/4;
+      const w = new THREE.Mesh(inp.adcs_act==="cmg" ? new THREE.SphereGeometry(rw,16,12)
+                                                    : new THREE.CylinderGeometry(rw,rw,rw*0.7,18), pmat(...PART_COLORS.adcs));
+      w.position.set(1.2*Math.cos(a), 0, 1.2*Math.sin(a));
+      w.rotation.set(0.6*Math.cos(a), 0, 0.6*Math.sin(a));
+      act.add(w);
     }
-    sim.pts.geometry.attributes.position.needsUpdate = true;
-    // statistical collision flashes, slowed to stay legible
-    sim.boomT += dt;
-    if(riskCDF && evRate > 0 && sim.boomT > 3 && Math.random() < dt/3){
-      sim.boomT = 0;
-      const u = Math.random(); let lo=0, hi=riskCDF.length-1;
-      while(lo<hi){ const mid=(lo+hi)>>1; (riskCDF[mid]<u)?lo=mid+1:hi=mid; }
-      const lat = (-89.5+179*lo/(riskCDF.length-1))*Math.PI/180, lon = Math.random()*2*Math.PI;
-      const R = RE3*((bandRint+bandRest)/2)/R_EARTH;
-      const sp = new THREE.Sprite(boomMaterial().clone());
-      sp.position.set(R*Math.cos(lat)*Math.cos(lon), 3+R*Math.sin(lat), R*Math.cos(lat)*Math.sin(lon));
-      sp.scale.set(1.1,1.1,1); sim.group.add(sp);
-      sim.booms.push({sp, exp: performance.now()/1000 + 2.5});
+    for(const ax of ["x","y","z"]){
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,2.2,8), pmat(...PART_COLORS.adcs));
+      if(ax==="x") rod.rotation.z = Math.PI/2; if(ax==="z") rod.rotation.x = Math.PI/2;
+      rod.position.y = 1.0; act.add(rod);
     }
-    const now = performance.now()/1000;
-    for(let k=sim.booms.length-1;k>=0;k--)
-      if(sim.booms[k].exp < now){ sim.group.remove(sim.booms[k].sp);
-        sim.booms[k].sp.material.dispose(); sim.booms.splice(k,1); }
-  };
+    act.position.set(0, cy - EXP*0.85, 0); group.add(act);
+    group.add(leader(new THREE.Vector3(0, cy-1.2, 0), new THREE.Vector3(0, act.position.y + 1.6, 0)));
+    const lAct = textSprite(`ADCS · H = ${ad?fmt(ad.Hreq,3):"–"} N·m·s · ${ad?fmt(ad.massRWMTQ,3):"–"} kg suite · GG ${ad?fmt(ad.Tgg*1e3,2):"–"} mN·m`, 26);
+    lAct.position.set(0, act.position.y - 2.2, 0); group.add(lAct);
+  }, Math.max(26, 2.0*(EXP + g.wL + 4)));
+  mvMaster.onTick = null;
+  mvMaster.onObjectClick = tab => setTab(tab);
 }
 
 /* ---------------- update cycle ---------------- */
@@ -1978,7 +1979,7 @@ function refresh(){
 
   rebuildSats(inp);
   rebuildCAD(inp, lastCtx);
-  buildMasterScene(inp, lastCtx, kep.E/inp.Tyr);
+  buildMasterScene(inp, lastCtx, kep);
 }
 let lastCtx = null;
 
