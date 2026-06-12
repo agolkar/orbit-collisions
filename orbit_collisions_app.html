@@ -26,9 +26,11 @@
   .tabpane{flex:1;min-height:0;overflow-y:auto;display:none;padding:12px 16px}
   .tabpane.active{display:block}
   #tab-collision.active{display:flex;gap:12px;padding:10px}
-  /* pinned parameters: params stay as a left sidebar, the active tab fills the rest */
-  #content.pinned #tab-params{display:block;flex:0 0 370px;border-right:1px solid var(--line);background:var(--panel2)}
-  #content.pinned #tab-params .cols{columns:1}
+  /* parameters: permanently docked as a left sidebar; the active tab fills the rest */
+  #tab-params{display:block;flex:0 0 350px;min-height:0;overflow-y:auto;padding:12px 14px;
+    border-right:1px solid var(--line);background:var(--panel2)}
+  #tab-params .cols{columns:1}
+  @media (max-width:1100px){#content{flex-direction:column}#tab-params{flex:0 0 auto;max-height:38vh;border-right:none;border-bottom:1px solid var(--line)}}
   .mini3d{height:260px;position:relative;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#0b0f1a}
   .mini3d canvas{display:block}
   .minihint{position:absolute;bottom:5px;left:8px;color:var(--dim);font-size:10.5px;pointer-events:none}
@@ -85,16 +87,13 @@
 
 <nav id="tabs">
   <button data-tab="tab-master" class="active">Master</button>
-  <button data-tab="tab-params">Parameters &amp; Assumptions</button>
   <button data-tab="tab-collision">Collision Avoidance</button>
   <button data-tab="tab-thermal">Thermal</button>
   <button data-tab="tab-power">Power</button>
   <button data-tab="tab-adcs">ADCS</button>
   <button data-tab="tab-external">External Debris</button>
   <button data-tab="tab-validation">Validation</button>
-  <label style="margin-left:auto;display:flex;align-items:center;gap:5px;color:var(--dim);font-size:12px;padding:4px 6px">
-    <input type="checkbox" id="pinParams" style="width:auto;accent-color:var(--acc)"> 📌 pin Parameters
-  </label>
+  <span style="margin-left:auto;color:var(--dim);font-size:12px;padding:6px">parameters stay docked on the left</span>
 </nav>
 
 <div id="content">
@@ -126,8 +125,8 @@
   </p>
 </section>
 
-<!-- ================= PARAMETERS ================= -->
-<section class="tabpane" id="tab-params">
+<!-- ================= PARAMETERS (docked sidebar) ================= -->
+<section id="tab-params">
   <h2>Parameters (shared by all tabs)</h2>
   <div class="cols">
     <fieldset><legend>Population and cross-section</legend>
@@ -248,19 +247,6 @@
     </fieldset>
   </div>
 
-  <h2>Assumptions register</h2>
-  <table class="data">
-    <tr><th>Assumption</th><th>Validity / limitation</th></tr>
-    <tr><td>Dilute gas, Poisson statistics</td><td>Mean free path exceeds shell thickness by ~10^7; individual event probabilities small.</td></tr>
-    <tr><td>Circular orbits, no perturbations</td><td>J2 only accelerates the RAAN randomization the model already assumes. Eccentricity shifts densities by km; negligible on rates.</td></tr>
-    <tr><td>Randomized RAAN and phase</td><td>Exact for ensemble means. Coordinated slotting or LTAN clustering (all dawn-dusk) violates it; not modeled.</td></tr>
-    <tr><td>&sigma; = shape factor &times; A</td><td>4A = enveloping sphere (conservative); physical band A&hellip;4A; all rates linear in &sigma;.</td></tr>
-    <tr><td>Inclination dispersion &plusmn;0.5&deg;</td><td>Total rate insensitive; only the F_sp &times; F_vel split depends on it (logarithmically).</td></tr>
-    <tr><td>Cascade branching &kappa;</td><td>Warning index, not an evolutionary debris model (use LEGEND/MASTER for that). Avoidance does NOT apply to &kappa;.</td></tr>
-    <tr><td>External debris profile</td><td>Order-of-magnitude envelope calibrated to public ORDEM 3.1 / MASTER-8 / ESA figures. NOT a certified run; use the scale slider for the uncertainty band.</td></tr>
-    <tr><td>Thermal model</td><td>Steady-state two-phase loop; radiator radiates from both faces to an equivalent sink; transients, shadowing and degradation excluded.</td></tr>
-    <tr><td>f_fail</td><td>End-to-end fraction of dangerous internal/trackable encounters not mitigated, including dead satellites; lethal non-trackable debris cannot be avoided at all.</td></tr>
-  </table>
 </section>
 
 <!-- ================= COLLISION ================= -->
@@ -472,6 +458,21 @@
     other: B shows the economics are gated by mass and link costs even before collision physics;
     this model shows collision physics adds constraints B assumes away.
   </p>
+  <h2>Assumptions register</h2>
+  <table class="data">
+    <tr><th>Assumption</th><th>Validity / limitation</th></tr>
+    <tr><td>Dilute gas, Poisson statistics</td><td>Mean free path exceeds shell thickness by ~10^7; individual event probabilities small.</td></tr>
+    <tr><td>Circular orbits, no perturbations</td><td>J2 only accelerates the RAAN randomization the model already assumes. Eccentricity shifts densities by km; negligible on rates.</td></tr>
+    <tr><td>Randomized RAAN and phase</td><td>Exact for ensemble means. Coordinated slotting or LTAN clustering (all dawn-dusk) violates it; not modeled.</td></tr>
+    <tr><td>&sigma; = shape factor &times; A</td><td>4A = enveloping sphere (conservative); physical band A&hellip;4A; all rates linear in &sigma;.</td></tr>
+    <tr><td>Inclination dispersion &plusmn;0.5&deg;</td><td>Total rate insensitive; only the F_sp &times; F_vel split depends on it (logarithmically).</td></tr>
+    <tr><td>Cascade branching &kappa;</td><td>Warning index, not an evolutionary debris model (use LEGEND/MASTER for that). Avoidance does NOT apply to &kappa;.</td></tr>
+    <tr><td>External debris profile</td><td>Order-of-magnitude envelope calibrated to public ORDEM 3.1 / MASTER-8 / ESA figures. NOT a certified run; use the scale slider for the uncertainty band.</td></tr>
+    <tr><td>Thermal model</td><td>Steady-state two-phase loop; radiator radiates from both faces to an equivalent sink; transients, shadowing and degradation excluded.</td></tr>
+    <tr><td>Power model</td><td>Beta-0 worst-case or dawn-dusk eclipse bounds; PMAD and battery as SMAD-class regressions; degradation via a single EOL fraction.</td></tr>
+    <tr><td>ADCS model</td><td>Screening-level torque budget and actuator regressions; flexible-body dynamics, jitter, and slew agility excluded.</td></tr>
+    <tr><td>f_fail</td><td>End-to-end fraction of dangerous internal/trackable encounters not mitigated, including dead satellites; lethal non-trackable debris cannot be avoided at all.</td></tr>
+  </table>
 </section>
 
 </div>
@@ -1035,13 +1036,8 @@ function readInputs(){
 /* ---------------- tab switching ---------------- */
 let chartsByTab = {};
 function setTab(id){
-  const pinned = $("pinParams").checked;
-  if(pinned && id === "tab-params")                       // params already visible as sidebar
-    id = (currentTab === "tab-params") ? "tab-master" : currentTab;
-  document.querySelectorAll(".tabpane").forEach(p=>
-    p.classList.toggle("active", p.id===id || (pinned && p.id==="tab-params")));
+  document.querySelectorAll(".tabpane").forEach(p=>p.classList.toggle("active", p.id===id));
   document.querySelectorAll("nav#tabs button").forEach(b=>b.classList.toggle("active", b.dataset.tab===id));
-  $("content").classList.toggle("pinned", pinned);
   // hidden-container fixes: resize charts and 3D canvases on activation
   setTimeout(()=>{
     (chartsByTab[id]||[]).forEach(c=>{ try{ c.resize(); }catch(e){} });
@@ -1909,7 +1905,6 @@ window.addEventListener("load", ()=>{
   mvMaster = miniView("master3d");
   document.querySelectorAll("nav#tabs button").forEach(b=>
     b.addEventListener("click", ()=>setTab(b.dataset.tab)));
-  $("pinParams").addEventListener("change", ()=>setTab(currentTab));
   document.querySelectorAll("input,select").forEach(el=>{
     el.addEventListener("input", schedule); el.addEventListener("change", schedule);
   });
