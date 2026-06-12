@@ -56,7 +56,10 @@
   table.data th{color:var(--dim);font-weight:600;background:var(--panel2)}
   .footnote{color:var(--dim);font-size:11px;margin-top:8px}
   .cols{columns:3 300px;column-gap:14px}
-  #view3d{flex:1;min-height:200px;position:relative;overflow:hidden;border:1px solid var(--line);border-radius:8px}
+  #view3d{flex:1;min-height:max(380px,52vh);position:relative;overflow:hidden;border:1px solid var(--line);border-radius:8px}
+  #tab-collision .cardgrid .card{padding:5px 8px}
+  #tab-collision .cardgrid .card .v{font-size:15.5px}
+  #tab-collision .cardgrid .card .s{font-size:10px}
   #view3d canvas{display:block}
   #viewhint{position:absolute;bottom:6px;left:10px;color:var(--dim);font-size:11px;pointer-events:none;max-width:90%}
   #viewtabs{position:absolute;top:8px;left:10px;z-index:5;display:flex;gap:6px}
@@ -353,6 +356,8 @@
     <div class="card"><div class="l">Aero + SRP + magnetic torque</div><div class="v" id="adRest">&ndash;</div><div class="s">aero <span id="adAero"></span> &middot; SRP <span id="adSrp"></span> &middot; mag <span id="adMag"></span> [mN&middot;m]</div></div>
     <div class="card"><div class="l">Momentum to store per orbit</div><div class="v" id="adH">&ndash;</div><div class="s">sized with margin 2 &rarr; <span id="adHreq"></span> N&middot;m&middot;s per axis</div></div>
     <div class="card"><div class="l">Recommended suite mass</div><div class="v" id="adMass">&ndash;</div><div class="s" id="adMassDet">&ndash;</div></div>
+    <div class="card"><div class="l">Torque authority check</div><div class="v" id="adMarg">&ndash;</div><div class="s">wheel class <span id="adTw"></span> N&middot;m vs peak disturbance &middot; 90&deg; slew &asymp; <span id="adSlew"></span> min</div></div>
+    <div class="card"><div class="l">Inertia context</div><div class="v" id="adImax">&ndash;</div><div class="s">Hubble &asymp; 87,000 kg&middot;m&sup2; (flies on reaction wheels); ISS &asymp; 10&#8311; (CMGs)</div></div>
   </div>
   <div class="verdict" id="adRec" style="background:rgba(90,169,255,.12);color:var(--acc)">&ndash;</div>
   <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">
@@ -379,6 +384,13 @@
         secular momentum that must be dumped. Configuration matters: the four-panel and z-fold layouts
         shorten the span, cutting &Delta;I and the whole actuator chain; that is mass the thermal design
         can trade against. Mass/power figures are SMAD-class regressions for screening, not catalog data.
+        On torque authority: despite the 120 m&sup2; radiator the inertia is Hubble-class (~half of
+        Hubble's 87,000 kg&middot;m&sup2;), and Hubble flies on reaction wheels. Wheels reject the
+        13 mN&middot;m disturbance with order-15&times; torque margin; what large inertia actually costs
+        is agility (tens of minutes per 90&deg; slew, irrelevant for a sun/nadir-fixed compute satellite)
+        and controller bandwidth below the flexible modes of 15 m wings, which this screening model
+        does not cover. At worst-case 45&deg; gravity-gradient attitudes the momentum requirement
+        reaches the top of the wheel class and the recommendation switches to CMGs automatically.
       </p>
     </div>
   </div>
@@ -923,6 +935,10 @@ function adcsModel(inp, d, th){
   const dipole = 2*Tsec/Math.max(Bfield*0.6, 1e-9);       // margin 2, worst-case B
   const mtq = {dipole, mass: 3*(0.03*dipole + 1)};
   const thr = {propYr: Tsec*YEAR/(1.5*220*9.81)};         // 1.5 m arm, Isp 220 s
+  // torque-authority check: wheel torque class grows with the momentum class
+  const Twheel = Math.min(0.4, Math.max(0.05, 0.05 + 0.0015*Hreq));   // N m, per wheel class
+  const marginT = Twheel/Math.max(Ttot, 1e-9);
+  const slew90_min = 2*Math.sqrt((Math.PI/2)*Imax/Twheel)/60;          // bang-bang estimate
   let rec;
   if(Hreq < 1) rec = "Momentum is small: magnetorquers with one small wheel suffice.";
   else if(Hreq < 80) rec = "Reaction-wheel pyramid + magnetorquer desaturation (baseline LEO solution).";
@@ -930,6 +946,7 @@ function adcsModel(inp, d, th){
   if(dipole > 500) rec += " Torquer dipole is impractical at this size: add thruster desaturation ("
       + thr.propYr.toFixed(1) + " kg/yr propellant).";
   return {g, Imax, Imin, dI, Tgg, Taero, Tsrp, Tmag, Ttot, Torb, Horbit, Hreq,
+          Twheel, marginT, slew90_min,
           rw, cmg, mtq, thr, rec,
           massRWMTQ: rw.mass + mtq.mass + 8,              // + sensors/avionics ~8 kg
           massCMG: cmg.mass + mtq.mass + 8};
@@ -1734,6 +1751,10 @@ function refresh(){
   $("adH").textContent = fmt(ad.Horbit,3)+" N·m·s";
   $("adHreq").textContent = fmt(ad.Hreq,3);
   const recRW = ad.Hreq < 80;
+  $("adMarg").textContent = "×"+fmt(ad.marginT,3);
+  $("adTw").textContent = ad.Twheel.toFixed(2);
+  $("adSlew").textContent = ad.slew90_min.toFixed(0);
+  $("adImax").textContent = fmt(ad.Imax,3)+" kg·m²";
   $("adMass").textContent = fmt(recRW ? ad.massRWMTQ : ad.massCMG,3)+" kg";
   $("adMassDet").textContent = recRW ? "RW pyramid + MTQ + sensors" : "CMG cluster + MTQ + sensors";
   $("adRec").textContent = ad.rec;
