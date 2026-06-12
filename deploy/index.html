@@ -85,7 +85,7 @@
 </div>
 <header>
   <h1>AI Mega-Constellation Explorer</h1>
-  <span class="sub">collision avoidance &middot; thermal &middot; external debris &middot; anchored: 2608 collisions/yr at defaults (kinetic)</span>
+  <span class="sub">An end-to-end systems model to explore AI mega-constellation system architectures</span>
 </header>
 
 <nav id="tabs">
@@ -96,14 +96,13 @@
   <button data-tab="tab-adcs">ADCS</button>
   <button data-tab="tab-external">External Debris</button>
   <button data-tab="tab-validation">Validation</button>
-  <span style="margin-left:auto;color:var(--dim);font-size:12px;padding:6px">parameters stay docked on the left</span>
 </nav>
 
 <div id="content">
 
 <!-- ================= MASTER ================= -->
 <section class="tabpane active" id="tab-master">
-  <h2>System dashboard (all layers, current parameter set)</h2>
+  <h2>System dashboard</h2>
   <div class="cardgrid">
     <div class="card"><div class="l">Internal collisions / yr (natural)</div><div class="v" id="mEk">&ndash;</div><div class="s">Keplerian &middot; kinetic: <span id="mEb"></span></div></div>
     <div class="card"><div class="l">Internal residual / yr (with CA)</div><div class="v" id="mEres">&ndash;</div><div class="s">f_fail = <span id="mFF"></span></div></div>
@@ -115,7 +114,7 @@
     <div class="card"><div class="l">Radiator root temperature</div><div class="v" id="mTrad">&ndash;</div><div class="s">GPU junction <span id="mTj"></span> &middot; thermal mass <span id="mMass"></span> kg/sat</div></div>
   </div>
   <div class="verdict" id="mVerdict">&ndash;</div>
-  <div class="chartbox" style="margin-top:10px"><h3>Live orbital view (same scene as the Collision Avoidance tab)</h3>
+  <div class="chartbox" style="margin-top:10px"><h3>Live orbital view</h3>
     <div class="mini3d" id="master3d" style="height:max(440px,55vh)">
       <div class="minihint">drag: rotate &middot; wheel: zoom &middot; light blue = nominal, flashing red = elevated local risk &middot; 💥 = statistical collision at the model rate</div>
     </div>
@@ -130,7 +129,7 @@
 
 <!-- ================= PARAMETERS (docked sidebar) ================= -->
 <section id="tab-params">
-  <h2>Parameters (shared by all tabs)</h2>
+  <h2>Parameters</h2>
   <div class="cols">
     <fieldset><legend>Population and cross-section</legend>
       <label>N satellites <span class="val" id="vN"></span></label>
