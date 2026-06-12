@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LEO Mega-Constellation Collision Explorer</title>
+<title>AI Mega-Constellation Explorer</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
@@ -26,6 +26,12 @@
   .tabpane{flex:1;min-height:0;overflow-y:auto;display:none;padding:12px 16px}
   .tabpane.active{display:block}
   #tab-collision.active{display:flex;gap:12px;padding:10px}
+  /* pinned parameters: params stay as a left sidebar, the active tab fills the rest */
+  #content.pinned #tab-params{display:block;flex:0 0 370px;border-right:1px solid var(--line);background:var(--panel2)}
+  #content.pinned #tab-params .cols{columns:1}
+  .mini3d{height:260px;position:relative;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#0b0f1a}
+  .mini3d canvas{display:block}
+  .minihint{position:absolute;bottom:5px;left:8px;color:var(--dim);font-size:10.5px;pointer-events:none}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
   .card .v{font-size:19px;font-weight:650;margin-top:2px}
   .card .l{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em}
@@ -73,7 +79,7 @@
   Do not trust the model results unless manually verified.
 </div>
 <header>
-  <h1>LEO Mega-Constellation Collision Explorer</h1>
+  <h1>AI Mega-Constellation Explorer</h1>
   <span class="sub">collision avoidance &middot; thermal &middot; external debris &middot; anchored: 2608 collisions/yr at defaults (kinetic)</span>
 </header>
 
@@ -82,8 +88,12 @@
   <button data-tab="tab-params">Parameters &amp; Assumptions</button>
   <button data-tab="tab-collision">Collision Avoidance</button>
   <button data-tab="tab-thermal">Thermal</button>
+  <button data-tab="tab-adcs">ADCS</button>
   <button data-tab="tab-external">External Debris</button>
   <button data-tab="tab-validation">Validation</button>
+  <label style="margin-left:auto;display:flex;align-items:center;gap:5px;color:var(--dim);font-size:12px;padding:4px 6px">
+    <input type="checkbox" id="pinParams" style="width:auto;accent-color:var(--acc)"> 📌 pin Parameters
+  </label>
 </nav>
 
 <div id="content">
@@ -184,6 +194,24 @@
       <label>Radiator areal density [kg/m&sup2;] <input type="number" id="tSigRad" value="3.5" step="0.5" min="1"></label>
     </fieldset>
 
+    <fieldset><legend>ADCS and configuration</legend>
+      <label>Radiator configuration
+        <select id="radCfg"><option value="2wing">two deployed wings</option>
+          <option value="4panel">four cross panels</option>
+          <option value="zfold">z-fold compact stack</option></select>
+      </label>
+      <label>Satellite mass [kg] <input type="number" id="aMsat" value="2500" step="100" min="200"></label>
+      <label>Pointing offset for GG sizing [deg] <input type="number" id="aTheta" value="5" step="1" min="0.5" max="45"></label>
+      <label>Drag area fraction of A <input type="number" id="aFdrag" value="0.05" step="0.01" min="0" max="1"></label>
+      <label>CoP-CoM offset [m] <input type="number" id="aDcp" value="1.0" step="0.25" min="0"></label>
+      <label>Residual dipole [A&middot;m&sup2;] <input type="number" id="aMres" value="5" step="1" min="0"></label>
+      <label>Actuator suite (3D view)
+        <select id="aAct"><option value="rw">RW pyramid + MTQ</option>
+          <option value="cmg">CMG cluster + MTQ</option>
+          <option value="thr">RW + thruster desat</option></select>
+      </label>
+    </fieldset>
+
     <fieldset><legend>External debris (screening level)</legend>
       <label>Environment scale factor <span class="val" id="vDbScale"></span></label>
       <input type="range" id="dbScale" min="-0.5" max="0.5" step="0.05" value="0" style="width:100%">
@@ -252,7 +280,11 @@
     <div class="card"><div class="l">Required radiator panel area</div><div class="v" id="thA">&ndash;</div><div class="s" id="thAlink">&ndash;</div></div>
   </div>
   <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">
-    <div class="chartbox" style="flex:1;min-width:340px"><h3>The thermal-collision tradeoff: hotter GPUs, smaller radiators, fewer collisions</h3><div style="height:240px"><canvas id="chThermal"></canvas></div></div>
+    <div style="flex:1;min-width:340px">
+      <div class="chartbox"><h3>The thermal-collision tradeoff: hotter GPUs, smaller radiators, fewer collisions</h3><div style="height:240px"><canvas id="chThermal"></canvas></div></div>
+      <div class="chartbox"><h3>Radiator configuration (3D, set in Parameters; drives ADCS inertia)</h3>
+        <div class="mini3d" id="thermal3d"><div class="minihint">drag to rotate &middot; same total area, different span: the ADCS tab shows what the span costs</div></div></div>
+    </div>
     <div style="flex:1;min-width:340px">
       <h2 style="margin-top:0">Thermal system sizing (per satellite)</h2>
       <table class="data" id="thParts">
@@ -269,6 +301,45 @@
         Raising the junction from 70&deg;C to 105&deg;C cuts the radiator (and the collision cross-section)
         by roughly a factor 2; the price is paid in silicon reliability, leakage power, and pump margins.
         Enable "drive A from Thermal tab" in Parameters to propagate this area through the whole model.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ADCS ================= -->
+<section class="tabpane" id="tab-adcs">
+  <h2>Attitude Determination and Control: the radiator span sets the control problem</h2>
+  <div class="cardgrid">
+    <div class="card"><div class="l">Gravity-gradient torque</div><div class="v" id="adGG">&ndash;</div><div class="s">&Delta;I = <span id="adDI"></span> kg&middot;m&sup2; at <span id="adTheta"></span>&deg; offset &middot; span <span id="adSpan"></span> m</div></div>
+    <div class="card"><div class="l">Aero + SRP + magnetic torque</div><div class="v" id="adRest">&ndash;</div><div class="s">aero <span id="adAero"></span> &middot; SRP <span id="adSrp"></span> &middot; mag <span id="adMag"></span> [mN&middot;m]</div></div>
+    <div class="card"><div class="l">Momentum to store per orbit</div><div class="v" id="adH">&ndash;</div><div class="s">sized with margin 2 &rarr; <span id="adHreq"></span> N&middot;m&middot;s per axis</div></div>
+    <div class="card"><div class="l">Recommended suite mass</div><div class="v" id="adMass">&ndash;</div><div class="s" id="adMassDet">&ndash;</div></div>
+  </div>
+  <div class="verdict" id="adRec" style="background:rgba(90,169,255,.12);color:var(--acc)">&ndash;</div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">
+    <div style="flex:1;min-width:340px">
+      <div class="chartbox"><h3>Disturbance torques vs altitude (300 km band, current configuration)</h3><div style="height:230px"><canvas id="chAdcs"></canvas></div></div>
+      <div class="chartbox"><h3>Actuator suite (3D, choose in Parameters)</h3>
+        <div class="mini3d" id="adcs3d"><div class="minihint">drag to rotate &middot; sizes scale with the computed momentum requirement</div></div></div>
+    </div>
+    <div style="flex:1;min-width:340px">
+      <h2 style="margin-top:0">Design alternatives</h2>
+      <table class="data">
+        <tr><th>Suite</th><th>Mass</th><th>Peak power</th><th>Notes</th></tr>
+        <tr id="rowRW"><td>4&times; reaction wheels + 3&times; magnetorquers</td><td id="altRWm">&ndash;</td><td id="altRWp">&ndash;</td>
+            <td>Baseline LEO. Wheels absorb the cyclic gravity-gradient momentum; torquers dump the secular part each orbit (dipole <span id="altDip"></span> A&middot;m&sup2;).</td></tr>
+        <tr id="rowCMG"><td>4&times; control-moment gyros + 3&times; magnetorquers</td><td id="altCMGm">&ndash;</td><td id="altCMGp">&ndash;</td>
+            <td>For large momentum/agility; pays a fixed mass and complexity premium, wins above ~80 N&middot;m&middot;s.</td></tr>
+        <tr id="rowTHR"><td>4&times; reaction wheels + thruster desaturation</td><td id="altTHRm">&ndash;</td><td id="altTHRp">&ndash;</td>
+            <td>Replaces torquers where the dipole gets impractical; costs <span id="altProp"></span> kg propellant per year.</td></tr>
+      </table>
+      <p class="footnote">
+        Sizing logic: the deployed radiator dominates the inertia asymmetry, so gravity gradient is
+        the design driver; T_gg = 3/2 n&sup2; &Delta;I sin(2&theta;). The cyclic part loads the wheels every
+        orbit (H &asymp; 0.637 T_gg T_orb/4); aero, solar pressure, and the residual dipole accumulate as
+        secular momentum that must be dumped. Configuration matters: the four-panel and z-fold layouts
+        shorten the span, cutting &Delta;I and the whole actuator chain; that is mass the thermal design
+        can trade against. Mass/power figures are SMAD-class regressions for screening, not catalog data.
       </p>
     </div>
   </div>
@@ -399,7 +470,15 @@ function defaultInputs(){
     th_PIT_kW:80, th_alphaOH:1.3, th_Tj_C:85, th_dTjc:20, th_dTcr:8,
     th_eps:0.9, th_eta:0.85, th_Tsink:200, th_sigRad:3.5, thermalLink:false,
     // external debris
-    db_scale:1.0, db_fcrit:0.3
+    db_scale:1.0, db_fcrit:0.3,
+    // ADCS
+    radCfg:"2wing",            // "2wing" | "4panel" | "zfold" (radiator layout)
+    adcs_Msat:2500,            // total satellite mass [kg]
+    adcs_theta:5,              // sustained pointing offset for GG sizing [deg]
+    adcs_fdrag:0.05,           // fraction of A presented to the flow (feathered panels)
+    adcs_dcp:1.0,              // CoP-CoM offset [m] (aero and SRP)
+    adcs_mres:5,               // residual magnetic dipole [A m^2]
+    adcs_act:"rw"              // rendering: "rw" | "cmg" | "thr"
   };
 }
 
@@ -563,7 +642,7 @@ function popGroups(inp, d){
 function cascadeCriterion(inp, d){
   const kappa = inp.frag*d.nMean*(inp.fragShape*inp.A)*d.vrelIso*(inp.tauYr*YEAR);
   return {kappa, Ncrit: kappa>0 ? inp.N/kappa : Infinity,
-          tauCrit_days: kappa>0 ? inp.tauYr*365.25/kappa : Infinity};
+          tauCrit_days: kappa>0 ? (inp.tauYr*YEAR/86400)/kappa : Infinity};
 }
 
 function rateVsLatitude(inp, nb){        // normalized dR/dbeta on a grid (per deg)
@@ -686,16 +765,91 @@ function externalModel(inp){
     n10_bandavg_km3: n10, n1_bandavg_km3: n1
   };
 }
-function externalAltitudeCurves(inp){                     // fleet rates vs central altitude
+function externalAltitudeCurves(inp){   // fleet rates vs central altitude, 300 km band average
   const alts = [], f1 = [], f10 = [];
   for(let h=300; h<=2000; h+=50){
-    const dd = debrisDensity(h);
+    let n10 = 0, n1 = 0; const ns = 12;
+    for(let k=0;k<ns;k++){ const dd = debrisDensity(h - 150 + 300*(k+0.5)/ns);
+      n10 += dd.n10/ns; n1 += dd.n1/ns; }
     const ff = 1e4*YEAR;                                  // 1-yr fluence per m^2 per (m^-3)
-    f1.push(dd.n1*inp.db_scale*1e-9*inp.A*inp.N*ff);
-    f10.push(dd.n10*inp.db_scale*1e-9*inp.shape*inp.A*inp.N*ff);
+    f1.push(n1*inp.db_scale*1e-9*inp.A*inp.N*ff);
+    f10.push(n10*inp.db_scale*1e-9*inp.shape*inp.A*inp.N*ff);
     alts.push(h);
   }
   return {alts, f1, f10};
+}
+/* ================= ADCS LAYER =================
+   Disturbance-torque budget and actuator sizing (SMAD-style screening).
+   Geometry derives from the radiator configuration, so radiator design,
+   thermal design and attitude control are coupled through the same A. */
+const ATM_ALT = [300,400,500,600,700,800,900,1000,1200,1500,2000];
+const ATM_RHO = [2.4e-11,3.7e-12,7.5e-13,1.8e-13,5.2e-14,1.8e-14,7.5e-15,
+                 3.5e-15,1.2e-15,3.5e-16,8.0e-17];      // kg/m^3, moderate solar activity
+function atmDensity(h_km){
+  if(h_km <= ATM_ALT[0]) return ATM_RHO[0];
+  if(h_km >= ATM_ALT[ATM_ALT.length-1]) return ATM_RHO[ATM_ALT.length-1];
+  let k=0; while(ATM_ALT[k+1] < h_km) k++;
+  const t = (h_km-ATM_ALT[k])/(ATM_ALT[k+1]-ATM_ALT[k]);
+  return ATM_RHO[k]*Math.pow(ATM_RHO[k+1]/ATM_RHO[k], t);
+}
+function radGeometry(A, cfg){            // panel layout from area and configuration
+  const wH = Math.min(6, Math.max(1.2, Math.sqrt(A/2)/2));
+  if(cfg === "4panel"){ const wL = (A/4)/wH; return {wH, wL, nWings:4, halfspan: 1+wL}; }
+  if(cfg === "zfold"){ const wL = (A/2)/wH; return {wH, wL, nWings:2, halfspan: 1+wL/3, folded:3}; }
+  const wL = (A/2)/wH; return {wH, wL, nWings:2, halfspan: 1+wL};
+}
+function adcsModel(inp, d, th){
+  const g = radGeometry(inp.A, inp.radCfg);
+  // panel mass consistent with the DISPLAYED area (robust if thermalModel returns Inf)
+  const mRad = inp.A*inp.th_sigRad;
+  const mBus = Math.max(inp.adcs_Msat - mRad, 100);
+  // inertia: radiator mass distributed from r=1 m to the half-span tip
+  const L = Math.max(g.halfspan - 1, 0.2);
+  const Iwing = mRad*((Math.pow(1+L,3) - 1)/(3*L));      // about the axis normal to the span
+  const Ibus = 0.8*mBus;                                  // ~2 m-class bus radius of gyration
+  const Imax = Iwing + Ibus, Imin = Ibus + 0.05*mRad;
+  const dI = Math.max(Imax - Imin, 1);
+  const r = d.Rbar, nOrb = Math.sqrt(MU_EARTH/r**3), Torb = 2*Math.PI/nOrb;
+  // disturbance torques [N m]
+  const Tgg = 1.5*nOrb*nOrb*dI*Math.sin(2*inp.adcs_theta*Math.PI/180);
+  const hmid = (inp.hmin+inp.hmax)/2;
+  const Adrag = inp.adcs_fdrag*inp.A + 6;                 // + bus frontal area
+  const Taero = 0.5*atmDensity(hmid)*d.vorb**2*2.2*Adrag*inp.adcs_dcp;
+  const Tsrp = 4.54e-6*1.6*inp.A*inp.adcs_dcp;            // (1+q), q = 0.6
+  const Bfield = 2*3.12e-5*Math.pow(R_EARTH/r,3)*0.75;    // orbit-average-ish
+  const Tmag = inp.adcs_mres*Bfield;
+  const Ttot = Tgg + Taero + Tsrp + Tmag;
+  // momentum sizing: cyclic terms accumulate ~T*Torb/4 (SMAD), margin 2
+  const Horbit = (0.637*Tgg + Taero + Tsrp + Tmag)*Torb/4;
+  const Hreq = 2*Horbit;
+  // actuator options
+  const mWheel = 2.5*Math.pow(Math.max(Hreq,0.1), 0.4);   // per wheel, 4x pyramid
+  const rw = {H: Hreq, mass: 4*mWheel, power: 4*(10+0.5*Math.min(Hreq,200))};
+  const cmg = {H: Hreq, mass: 4*(0.9*Math.pow(Math.max(Hreq,1),0.5)+12),
+               power: 4*(25+0.2*Math.min(Hreq,400))};
+  const Tsec = Taero + Tsrp + Tmag;                       // secular share to dump
+  const dipole = 2*Tsec/Math.max(Bfield*0.6, 1e-9);       // margin 2, worst-case B
+  const mtq = {dipole, mass: 3*(0.03*dipole + 1)};
+  const thr = {propYr: Tsec*YEAR/(1.5*220*9.81)};         // 1.5 m arm, Isp 220 s
+  let rec;
+  if(Hreq < 1) rec = "Momentum is small: magnetorquers with one small wheel suffice.";
+  else if(Hreq < 80) rec = "Reaction-wheel pyramid + magnetorquer desaturation (baseline LEO solution).";
+  else rec = "Momentum exceeds the reaction-wheel class: CMG cluster (or segmented radiators to cut the gravity-gradient term).";
+  if(dipole > 500) rec += " Torquer dipole is impractical at this size: add thruster desaturation ("
+      + thr.propYr.toFixed(1) + " kg/yr propellant).";
+  return {g, Imax, Imin, dI, Tgg, Taero, Tsrp, Tmag, Ttot, Torb, Horbit, Hreq,
+          rw, cmg, mtq, thr, rec,
+          massRWMTQ: rw.mass + mtq.mass + 8,              // + sensors/avionics ~8 kg
+          massCMG: cmg.mass + mtq.mass + 8};
+}
+function adcsTorqueVsAltitude(inp, th){                   // for the chart
+  const alts=[], gg=[], ae=[], sr=[], mg=[];
+  for(let h=350; h<=1500; h+=50){
+    const inp2 = {...inp, hmin:h-150, hmax:h+150};
+    const a = adcsModel(inp2, derive(inp2), th);
+    alts.push(h); gg.push(a.Tgg*1e3); ae.push(a.Taero*1e3); sr.push(a.Tsrp*1e3); mg.push(a.Tmag*1e3);
+  }
+  return {alts, gg, ae, sr, mg};
 }
 /* ================ END MODEL LAYER ================ */
 </script>
@@ -754,6 +908,14 @@ function readInputs(){
   // external debris
   inp.db_scale = 10**parseFloat($("dbScale").value);
   inp.db_fcrit = parseFloat($("dbFcrit").value);
+  // ADCS
+  inp.radCfg = $("radCfg").value;
+  inp.adcs_Msat = num("aMsat", 2500, 200, 1e6);
+  inp.adcs_theta = num("aTheta", 5, 0.5, 45);
+  inp.adcs_fdrag = num("aFdrag", 0.05, 0, 1);
+  inp.adcs_dcp = num("aDcp", 1.0, 0, 30);
+  inp.adcs_mres = num("aMres", 5, 0, 1e5);
+  inp.adcs_act = $("aAct").value;
   // thermal -> area coupling
   if(inp.thermalLink){
     const th = thermalModel(inp);
@@ -766,15 +928,26 @@ function readInputs(){
 /* ---------------- tab switching ---------------- */
 let chartsByTab = {};
 function setTab(id){
-  document.querySelectorAll(".tabpane").forEach(p=>p.classList.toggle("active", p.id===id));
+  const pinned = $("pinParams").checked;
+  if(pinned && id === "tab-params")                       // params already visible as sidebar
+    id = (currentTab === "tab-params") ? "tab-master" : currentTab;
+  document.querySelectorAll(".tabpane").forEach(p=>
+    p.classList.toggle("active", p.id===id || (pinned && p.id==="tab-params")));
   document.querySelectorAll("nav#tabs button").forEach(b=>b.classList.toggle("active", b.dataset.tab===id));
-  // hidden-container fixes: resize charts and the 3D canvas on activation
-  (chartsByTab[id]||[]).forEach(c=>{ try{ c.resize(); }catch(e){} });
-  if(id==="tab-collision" && typeof resize3D === "function") resize3D();
+  $("content").classList.toggle("pinned", pinned);
+  // hidden-container fixes: resize charts and 3D canvases on activation
+  setTimeout(()=>{
+    (chartsByTab[id]||[]).forEach(c=>{ try{ c.resize(); }catch(e){} });
+    if(typeof resize3D === "function") resize3D();
+    if(mvThermal) mvThermal.resize();
+    if(mvAdcs) mvAdcs.resize();
+  }, 30);
+  currentTab = id;
 }
+let currentTab = "tab-master";
 
 /* ---------------- charts ---------------- */
-let chSweep, chLat, chVel, chThermal, chExt;
+let chSweep, chLat, chVel, chThermal, chExt, chAdcs;
 function makeCharts(){
   const gridCol = "rgba(143,160,189,.15)", tickCol = "#8fa0bd";
   const base = (extra) => ({responsive:true, maintainAspectRatio:false, animation:false,
@@ -808,7 +981,137 @@ function makeCharts(){
     options:base({scales:{
       x:{grid:{color:gridCol},ticks:{color:tickCol},title:{display:true,text:"central altitude [km]",color:tickCol}},
       y:{type:"logarithmic",grid:{color:gridCol},ticks:{color:tickCol}}}})});
-  chartsByTab = {"tab-collision":[chSweep,chLat,chVel], "tab-thermal":[chThermal], "tab-external":[chExt]};
+  chAdcs = new Chart($("chAdcs"), {type:"line", data:{labels:[], datasets:[
+      {label:"gravity gradient", borderColor:"#ffa94d", data:[], pointRadius:0, borderWidth:2},
+      {label:"aerodynamic", borderColor:"#5aa9ff", data:[], pointRadius:0, borderWidth:1.5},
+      {label:"solar pressure", borderColor:"#39c98e", data:[], pointRadius:0, borderWidth:1.5},
+      {label:"magnetic", borderColor:"#ff5a6a", data:[], pointRadius:0, borderWidth:1.5}]},
+    options:base({scales:{
+      x:{grid:{color:gridCol},ticks:{color:tickCol},title:{display:true,text:"central altitude [km]",color:tickCol}},
+      y:{type:"logarithmic",grid:{color:gridCol},ticks:{color:tickCol},title:{display:true,text:"torque [mN·m]",color:tickCol}}}})});
+  chartsByTab = {"tab-collision":[chSweep,chLat,chVel], "tab-thermal":[chThermal],
+                 "tab-external":[chExt], "tab-adcs":[chAdcs]};
+}
+
+/* ---------------- mini 3D views (thermal config, ADCS actuators) ---------------- */
+function miniView(containerId){
+  const el = $(containerId);
+  const scene = new THREE.Scene();
+  const cam = new THREE.PerspectiveCamera(45, 2, 0.1, 2000);
+  const ren = new THREE.WebGLRenderer({antialias:true});
+  ren.setClearColor(0x0b0f1a);
+  el.appendChild(ren.domElement);
+  scene.add(new THREE.AmbientLight(0x9aa8c4, 0.9));
+  const dl = new THREE.DirectionalLight(0xffffff, 0.85); dl.position.set(40,60,30); scene.add(dl);
+  scene.add(new THREE.GridHelper(80, 16, 0x33486e, 0x1b2940));
+  let group = null, theta = 0.7, phi = 0.32, dist = 36, drag=false, px=0, py=0, auto=true;
+  const setCam = ()=>{ cam.position.set(dist*Math.cos(phi)*Math.sin(theta), 4+dist*Math.sin(phi),
+                       dist*Math.cos(phi)*Math.cos(theta)); cam.lookAt(0,3,0); };
+  el.addEventListener("mousedown", e=>{drag=true; auto=false; px=e.clientX; py=e.clientY;});
+  window.addEventListener("mouseup", ()=>drag=false);
+  el.addEventListener("mousemove", e=>{ if(!drag) return;
+    theta -= (e.clientX-px)*0.006; phi = Math.min(1.3, Math.max(-0.1, phi+(e.clientY-py)*0.006));
+    px=e.clientX; py=e.clientY; setCam(); });
+  el.addEventListener("wheel", e=>{ e.preventDefault();
+    dist = Math.min(160, Math.max(8, dist*(1+e.deltaY*0.001))); setCam(); }, {passive:false});
+  const view = {
+    scene,
+    rebuild(builder, camDist){
+      if(group){ scene.remove(group);
+        group.traverse(o=>{ if(o.geometry) o.geometry.dispose();
+          if(o.material){ if(o.material.map) o.material.map.dispose(); o.material.dispose(); } }); }
+      group = new THREE.Group(); builder(group); scene.add(group);
+      if(camDist) { dist = camDist; setCam(); }
+    },
+    resize(){
+      if(el.clientWidth === 0) return;
+      cam.aspect = el.clientWidth/el.clientHeight; cam.updateProjectionMatrix();
+      ren.setSize(el.clientWidth, el.clientHeight);
+    },
+    tick(dt){
+      if(el.offsetParent === null) return;          // tab hidden: skip
+      if(ren.domElement.width === 0) view.resize();
+      if(auto){ theta += dt*0.15; setCam(); }
+      ren.render(scene, cam);
+    }
+  };
+  setCam();
+  return view;
+}
+let mvThermal = null, mvAdcs = null;
+const pmat = (c, e) => new THREE.MeshPhongMaterial({color:c, emissive:e||0x101418, side:THREE.DoubleSide});
+
+function buildRadiatorSat(group, inp){
+  const g = radGeometry(inp.A, inp.radCfg);
+  group.add(new THREE.Mesh(new THREE.BoxGeometry(2,2,3), pmat(0xc9a227, 0x3a2f08)));
+  const panel = (len, off, rotY) => {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(len, g.wH, 0.12), pmat(0xd7dde8, 0x20242c));
+    p.position.set(Math.cos(rotY)*(off+len/2), 0, Math.sin(rotY)*(off+len/2));
+    p.rotation.y = -rotY; return p;
+  };
+  if(inp.radCfg === "4panel"){
+    for(let k=0;k<4;k++) group.add(panel(g.wL, 1, k*Math.PI/2));
+  } else if(inp.radCfg === "zfold"){
+    // accordion: 3 stacked segments per side, slightly offset
+    const seg = g.wL/3;
+    for(const s of [1,-1]) for(let k=0;k<3;k++){
+      const p = new THREE.Mesh(new THREE.BoxGeometry(seg, g.wH, 0.1), pmat(0xd7dde8, 0x20242c));
+      p.position.set(s*(1+seg/2+0.15*k), 0, (k-1)*0.45); group.add(p);
+    }
+  } else {
+    group.add(panel(g.wL, 1, 0)); group.add(panel(g.wL, 1, Math.PI));
+  }
+  group.position.y = Math.max(g.wH/2+1.2, 3);
+  const lbl = textSprite(`${inp.radCfg}: span ${(2*g.halfspan).toFixed(1)} m · ${fmt(inp.A,3)} m² total`, 22);
+  lbl.position.set(0, group.position.y + g.wH/2 + 2.5, 0); group.add(lbl);
+}
+
+function buildAdcsSat(group, inp, ad){
+  group.add(new THREE.Mesh(new THREE.BoxGeometry(2,2,3), pmat(0xc9a227, 0x3a2f08)));
+  // stub radiator roots to give context
+  for(const s of [1,-1]){
+    const p = new THREE.Mesh(new THREE.BoxGeometry(2.5, Math.min(ad.g.wH,3), 0.1), pmat(0x6b7687, 0x14181f));
+    p.position.x = s*2.2; group.add(p);
+  }
+  const Hs = Math.min(Math.max(ad.Hreq, 2), 300);
+  if(inp.adcs_act === "cmg"){
+    const r = 0.35 + 0.12*Math.log10(Hs+1)*2;
+    for(let k=0;k<4;k++){
+      const a = k*Math.PI/2 + Math.PI/4;
+      const cmg = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 14), pmat(0x8fa0bd, 0x1a2030));
+      cmg.position.set(1.35*Math.cos(a), -1.3, 1.35*Math.sin(a));
+      group.add(cmg);
+      const gim = new THREE.Mesh(new THREE.TorusGeometry(r*1.25, 0.05, 8, 24), pmat(0x5aa9ff, 0x0d2034));
+      gim.position.copy(cmg.position); gim.rotation.x = Math.PI/2 + (k%2?0.5:-0.5); group.add(gim);
+    }
+  } else {
+    const r = 0.22 + 0.10*Math.log10(Hs+1)*2;
+    for(let k=0;k<4;k++){
+      const a = k*Math.PI/2 + Math.PI/4;
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(r, r, r*0.7, 20), pmat(0x8fa0bd, 0x1a2030));
+      w.position.set(1.1*Math.cos(a), -1.25, 1.1*Math.sin(a));
+      w.rotation.set(0.6*Math.cos(a), 0, 0.6*Math.sin(a));     // pyramid cant
+      group.add(w);
+    }
+  }
+  if(inp.adcs_act === "thr"){
+    for(const [x,z] of [[1.2,1.7],[-1.2,1.7],[1.2,-1.7],[-1.2,-1.7]]){
+      const t = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.45, 12), pmat(0xff8a5a, 0x301008));
+      t.position.set(x, 1.15, z); t.rotation.x = Math.PI; group.add(t);
+    }
+  } else {
+    const rodLen = 1.2 + 0.5*Math.log10(Math.max(ad.mtq.dipole,1));
+    const rod = ax => { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,rodLen,10), pmat(0x39c98e, 0x0c2c1e));
+      if(ax==="x") m.rotation.z = Math.PI/2; if(ax==="z") m.rotation.x = Math.PI/2;
+      m.position.y = 1.15; return m; };
+    group.add(rod("x")); group.add(rod("y")); group.add(rod("z"));
+  }
+  const st = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.18, 0.5, 12), pmat(0x1b2f6e, 0x0a1330));
+  st.position.set(0.7, 1.25, -1.2); st.rotation.x = -0.5; group.add(st);
+  group.position.y = 3;
+  const names = {rw:"4× RW pyramid + 3× magnetorquers", cmg:"4× CMG + 3× magnetorquers", thr:"4× RW + thruster desaturation"};
+  const lbl = textSprite(`${names[inp.adcs_act]} · H = ${fmt(ad.Hreq,3)} N·m·s`, 16);
+  lbl.position.set(0, 6.6, 0); group.add(lbl);
 }
 
 function updateCharts(inp, kep){
@@ -855,9 +1158,12 @@ function updateThermalChart(inp, kep, th){
   const Tj = [], Aarr = [], Earr = [];
   for(let t=55; t<=115; t+=2){
     const t2 = thermalModel({...inp, th_Tj_C: t});
-    Tj.push(t); Aarr.push(t2.A);
-    Earr.push(kep.E/inp.Tyr * t2.A/inp.A);   // E linear in sigma = shape*A
+    Tj.push(t); Aarr.push(isFinite(t2.A) ? t2.A : null);
+    Earr.push(isFinite(t2.A) ? kep.E/inp.Tyr * t2.A/inp.A : null);   // E linear in sigma
   }
+  chThermal.data.datasets[1].label = inp.thermalLink
+    ? "internal collisions/yr (natural)"
+    : "internal collisions/yr (if A were thermal-driven)";
   chThermal.data.labels = Tj;
   chThermal.data.datasets[0].data = Aarr;
   chThermal.data.datasets[1].data = Earr;
@@ -932,7 +1238,8 @@ function init3D(){
   el.addEventListener("wheel", e=>{ e.preventDefault();
     const c = camStates[activeView];
     c.dist = Math.min(c.max, Math.max(c.min, c.dist*(1+e.deltaY*0.001))); updateCam(); }, {passive:false});
-  window.addEventListener("resize", resize3D);
+  window.addEventListener("resize", ()=>{ resize3D();
+    if(mvThermal) mvThermal.resize(); if(mvAdcs) mvAdcs.resize(); });
 
   const setView = v => { activeView = v;
     $("tabConst").classList.toggle("active", v==="const");
@@ -1078,7 +1385,8 @@ function animate(ts){
   const tNow = ts/1000;
   const speed = parseFloat($("TS").value);
   simT += dt*speed;
-  if(activeView === "const" && satData && satPts){
+  const mainVisible = $("view3d").offsetParent !== null;
+  if(mainVisible && activeView === "const" && satData && satPts){
     const pos = satPts.geometry.attributes.position.array;
     const colA = satPts.geometry.attributes.color.array;
     const {M,inc,raan,u0,rr,nm} = satData;
@@ -1117,7 +1425,9 @@ function animate(ts){
         ev.sp.material.opacity = left < 1 ? left : 1; }
     }
   }
-  renderer.render(activeView === "cad" ? sceneCAD : scene, camera);
+  if(mainVisible) renderer.render(activeView === "cad" ? sceneCAD : scene, camera);
+  if(mvThermal) mvThermal.tick(dt);
+  if(mvAdcs) mvAdcs.tick(dt);
 }
 
 /* ---------------- update cycle ---------------- */
@@ -1173,7 +1483,7 @@ function refresh(){
     ? "SSO "+fmt(kep.sso.iMinDeg,4)+"–"+fmt(kep.sso.iMaxDeg,4)+"°: "
       +fmt(kep.sso.nuMinYr,2)+"–"+fmt(kep.sso.nuMaxYr,2)
     : inp.mix.map(([i],k)=>i.toFixed(0)+"°: "+fmt(kep.nuPop[k]*YEAR,2)).join("  ");
-  $("oDr1").textContent = fmt(requiredShellThickness(inp,1)/1e3,2)+" km";
+  $("oDr1").textContent = fmt(requiredShellThickness(inp, 1*inp.Tyr)/1e3,2)+" km";  // 1 per YEAR regardless of window
   const reg = $("regime");
   if(casc.kappa >= 1){ reg.style.background="rgba(255,90,106,.18)"; reg.style.color="#ff8a96";
     reg.firstChild.textContent = "SUPERCRITICAL: one breakup cascades (κ ≥ 1)"; }
@@ -1208,6 +1518,42 @@ function refresh(){
   $("exSat10").textContent = fmt(ext.satEnc10Yr,2);
   $("exResid").textContent = fmt(ext.resid10Yr,3)+" /yr";
   updateExternalChart(inp, kep);
+
+  /* --- ADCS tab --- */
+  const ad = adcsModel(inp, kep.d, th);
+  $("adGG").textContent = fmt(ad.Tgg*1e3,3)+" mN·m";
+  $("adDI").textContent = fmt(ad.dI,3);
+  $("adTheta").textContent = inp.adcs_theta.toFixed(0);
+  $("adSpan").textContent = (2*ad.g.halfspan).toFixed(1);
+  $("adRest").textContent = fmt((ad.Taero+ad.Tsrp+ad.Tmag)*1e3,3)+" mN·m";
+  $("adAero").textContent = fmt(ad.Taero*1e3,2);
+  $("adSrp").textContent = fmt(ad.Tsrp*1e3,2);
+  $("adMag").textContent = fmt(ad.Tmag*1e3,2);
+  $("adH").textContent = fmt(ad.Horbit,3)+" N·m·s";
+  $("adHreq").textContent = fmt(ad.Hreq,3);
+  const recRW = ad.Hreq < 80;
+  $("adMass").textContent = fmt(recRW ? ad.massRWMTQ : ad.massCMG,3)+" kg";
+  $("adMassDet").textContent = recRW ? "RW pyramid + MTQ + sensors" : "CMG cluster + MTQ + sensors";
+  $("adRec").textContent = ad.rec;
+  $("altRWm").textContent = fmt(ad.massRWMTQ,3)+" kg";
+  $("altRWp").textContent = fmt(ad.rw.power,3)+" W";
+  $("altDip").textContent = fmt(ad.mtq.dipole,3);
+  $("altCMGm").textContent = fmt(ad.massCMG,3)+" kg";
+  $("altCMGp").textContent = fmt(ad.cmg.power,3)+" W";
+  $("altTHRm").textContent = fmt(ad.rw.mass+8,3)+" kg + prop";
+  $("altTHRp").textContent = fmt(ad.rw.power,3)+" W";
+  $("altProp").textContent = fmt(ad.thr.propYr,2);
+  $("rowRW").style.background  = recRW ? "rgba(57,201,142,.10)" : "";
+  $("rowCMG").style.background = !recRW ? "rgba(57,201,142,.10)" : "";
+  const tq = adcsTorqueVsAltitude(inp, th);
+  chAdcs.data.labels = tq.alts;
+  chAdcs.data.datasets[0].data = tq.gg;
+  chAdcs.data.datasets[1].data = tq.ae;
+  chAdcs.data.datasets[2].data = tq.sr;
+  chAdcs.data.datasets[3].data = tq.mg;
+  chAdcs.update();
+  if(mvThermal) mvThermal.rebuild(g2=>buildRadiatorSat(g2, inp), Math.max(24, 2.2*radGeometry(inp.A, inp.radCfg).halfspan));
+  if(mvAdcs) mvAdcs.rebuild(g2=>buildAdcsSat(g2, inp, ad), 14);
 
   /* --- master tab --- */
   $("mEk").textContent = fmt(kep.E/inp.Tyr,3);
@@ -1290,7 +1636,7 @@ function fillValidation(){
   $("vaX10").textContent = fmt(ext.fleetEnc10Yr, 3);
   $("stX10").textContent = "≈ same order"; $("stX10").style.color = "var(--amber)";
   $("vaX1").textContent = fmt(ext.fleetHits1Yr, 3);
-  $("stX1").textContent = "upper edge of band (ESA-count anchored)"; $("stX1").style.color = "var(--amber)";
+  $("stX1").textContent = "above the indicative band (ESA-count anchored)"; $("stX1").style.color = "var(--amber)";
   $("vbArea").textContent = (th.A/inp.th_PIT_kW).toFixed(2)+" m²/kW";
   $("vbTrad").textContent = th.Trad.toFixed(0)+" K";
   $("vbT2").textContent = th.Trad.toFixed(0)+" K ("+(th.Trad-273.15).toFixed(0)+" °C)";
@@ -1302,8 +1648,11 @@ function fillValidation(){
 
 window.addEventListener("load", ()=>{
   makeCharts(); init3D(); fillValidation();
+  mvThermal = miniView("thermal3d");
+  mvAdcs = miniView("adcs3d");
   document.querySelectorAll("nav#tabs button").forEach(b=>
     b.addEventListener("click", ()=>setTab(b.dataset.tab)));
+  $("pinParams").addEventListener("change", ()=>setTab(currentTab));
   document.querySelectorAll("input,select").forEach(el=>{
     el.addEventListener("input", schedule); el.addEventListener("change", schedule);
   });
