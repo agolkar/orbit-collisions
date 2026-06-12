@@ -1332,6 +1332,18 @@ function updateExternalChart(inp, kep){
 /* ---------------- 3D views ---------------- */
 let scene, sceneCAD, camera, renderer, satPts, satData=null, shellMesh1, shellMesh2,
     cadGroup=null, simT=0, lastFrame=0, activeView="const";
+let satTrail=null, trailHead=0, trailTimer=0, trailPrimed=false, glowTex=null;
+const TRAIL_K = 7;
+function glowTexture(){
+  if(glowTex) return glowTex;
+  const cv = document.createElement("canvas"); cv.width = cv.height = 64;
+  const cx = cv.getContext("2d");
+  const gr = cx.createRadialGradient(32,32,0,32,32,32);
+  gr.addColorStop(0,"rgba(255,255,255,1)"); gr.addColorStop(0.35,"rgba(255,255,255,0.55)");
+  gr.addColorStop(1,"rgba(255,255,255,0)");
+  cx.fillStyle = gr; cx.fillRect(0,0,64,64);
+  glowTex = new THREE.CanvasTexture(cv); return glowTex;
+}
 let riskLUT=null, riskCDF=null, evRate=0, bandRint=0, bandRest=0;
 let collisions=[], boomMat=null;
 const COL_BASE=[0.55,0.82,1.0], COL_RED=[1.0,0.10,0.10];
@@ -1362,14 +1374,66 @@ function init3D(){
   renderer.setClearColor(0x0b0f1a);
   el.appendChild(renderer.domElement);
 
-  const earth = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32),
-    new THREE.MeshPhongMaterial({color:0x1d3a6e, emissive:0x0a1830, specular:0x222222, shininess:8}));
+  /* --- cinematic Earth: procedural day/night shader, atmosphere, stars --- */
+  const SUN_DIR = new THREE.Vector3(5,2,4).normalize();
+  const earth = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 48), new THREE.ShaderMaterial({
+    uniforms: {sunDir:{value:SUN_DIR}},
+    vertexShader: `
+      varying vec3 vN;
+      void main(){ vN = normalize(position);
+        gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+    fragmentShader: `
+      uniform vec3 sunDir; varying vec3 vN;
+      float hash(vec3 p){ return fract(sin(dot(p, vec3(127.1,311.7,74.7)))*43758.5453); }
+      float vnoise(vec3 p){
+        vec3 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
+        float a000=hash(i), a100=hash(i+vec3(1,0,0)), a010=hash(i+vec3(0,1,0)), a110=hash(i+vec3(1,1,0));
+        float a001=hash(i+vec3(0,0,1)), a101=hash(i+vec3(1,0,1)), a011=hash(i+vec3(0,1,1)), a111=hash(i+vec3(1,1,1));
+        return mix(mix(mix(a000,a100,f.x),mix(a010,a110,f.x),f.y),
+                   mix(mix(a001,a101,f.x),mix(a011,a111,f.x),f.y), f.z); }
+      float fbm(vec3 p){ return 0.55*vnoise(p) + 0.30*vnoise(p*2.3) + 0.15*vnoise(p*5.1); }
+      void main(){
+        vec3 n = normalize(vN);
+        float day = dot(n, sunDir);
+        float cont = smoothstep(0.52, 0.60, fbm(n*2.6 + 7.3));
+        float ice = smoothstep(0.82, 0.93, abs(n.y));
+        vec3 ocean = mix(vec3(0.05,0.13,0.28), vec3(0.08,0.20,0.38), 0.5+0.5*n.y);
+        vec3 land  = mix(vec3(0.12,0.22,0.13), vec3(0.30,0.27,0.18), vnoise(n*7.0));
+        vec3 surf = mix(mix(ocean, land, cont), vec3(0.75,0.80,0.85), ice);
+        float cloud = smoothstep(0.58, 0.72, fbm(n*4.2 - 2.1));
+        surf = mix(surf, vec3(0.80,0.84,0.90), cloud*0.45);
+        float dayF = smoothstep(-0.12, 0.22, day);
+        float lights = step(0.972, hash(floor(n*70.0))) * cont * (1.0-ice);
+        vec3 night = vec3(0.010,0.016,0.036) + lights*vec3(1.0,0.72,0.38)*0.9;
+        vec3 col = mix(night, surf*(0.25+0.85*max(day,0.0)), dayF);
+        gl_FragColor = vec4(col, 1.0); }`
+  }));
   scene.add(earth);
-  const grid = new THREE.Mesh(new THREE.SphereGeometry(1.001, 36, 24),
-    new THREE.MeshBasicMaterial({color:0x2c4f8c, wireframe:true, transparent:true, opacity:0.25}));
-  scene.add(grid);
-  scene.add(new THREE.AmbientLight(0x8899bb, 0.7));
-  const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(5,2,4); scene.add(sun);
+  const atmo = new THREE.Mesh(new THREE.SphereGeometry(1.045, 48, 36), new THREE.ShaderMaterial({
+    side: THREE.BackSide, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+    vertexShader: `
+      varying float vI;
+      void main(){
+        vec3 nV = normalize(normalMatrix * normal);
+        vI = pow(0.72 - dot(nV, vec3(0.0,0.0,1.0)), 3.0);
+        gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+    fragmentShader: `
+      varying float vI;
+      void main(){ gl_FragColor = vec4(vec3(0.28,0.55,1.0)*max(vI,0.0), 1.0); }`
+  }));
+  scene.add(atmo);
+  { // star field
+    const NS = 1400, sp = new Float32Array(NS*3);
+    for(let k=0;k<NS;k++){ const u=Math.random()*2-1, ph=Math.random()*2*Math.PI, st=Math.sqrt(1-u*u);
+      sp[3*k]=70*st*Math.cos(ph); sp[3*k+1]=70*u; sp[3*k+2]=70*st*Math.sin(ph); }
+    const sg = new THREE.BufferGeometry();
+    sg.setAttribute("position", new THREE.BufferAttribute(sp, 3));
+    scene.add(new THREE.Points(sg, new THREE.PointsMaterial({color:0xaebfdd, size:1.3,
+      sizeAttenuation:false, transparent:true, opacity:0.75, depthWrite:false})));
+  }
+  scene.add(new THREE.AmbientLight(0x8899bb, 0.55));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.95);
+  sun.position.copy(SUN_DIR.clone().multiplyScalar(10)); scene.add(sun);
 
   sceneCAD.add(new THREE.AmbientLight(0x9aa8c4, 0.85));
   const sun2 = new THREE.DirectionalLight(0xffffff, 0.9); sun2.position.set(60,90,40); sceneCAD.add(sun2);
@@ -1435,11 +1499,29 @@ function rebuildSats(inp){
   }
   satData = {M, inc, raan, u0, rr, nm};
   if(satPts){ scene.remove(satPts); satPts.geometry.dispose(); satPts.material.dispose(); }
+  if(satTrail){ scene.remove(satTrail); satTrail.geometry.dispose(); satTrail.material.dispose(); satTrail = null; }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(M*3), 3));
   g.setAttribute("color", new THREE.BufferAttribute(col, 3));
-  satPts = new THREE.Points(g, new THREE.PointsMaterial({size:0.018, vertexColors:true, sizeAttenuation:true, transparent:true, opacity:0.95}));
+  satPts = new THREE.Points(g, new THREE.PointsMaterial({size:0.045, map:glowTexture(),
+    vertexColors:true, sizeAttenuation:true, transparent:true, opacity:0.95,
+    blending:THREE.AdditiveBlending, depthWrite:false}));
   scene.add(satPts);
+  // fading orbit trails: K history snapshots per satellite
+  const K = TRAIL_K, tp = new Float32Array(M*K*3), tc = new Float32Array(M*K*3);
+  for(let s=0;s<K;s++){
+    const f = 0.30*(1 - s/K);
+    for(let k=0;k<M;k++){ const i3 = 3*(s*M+k);
+      tc[i3]=0.45*f; tc[i3+1]=0.70*f; tc[i3+2]=1.0*f; }
+  }
+  const tg = new THREE.BufferGeometry();
+  tg.setAttribute("position", new THREE.BufferAttribute(tp, 3));
+  tg.setAttribute("color", new THREE.BufferAttribute(tc, 3));
+  satTrail = new THREE.Points(tg, new THREE.PointsMaterial({size:0.022, map:glowTexture(),
+    vertexColors:true, sizeAttenuation:true, transparent:true, opacity:0.8,
+    blending:THREE.AdditiveBlending, depthWrite:false}));
+  scene.add(satTrail);
+  trailHead = 0; trailTimer = 0; trailPrimed = false;
 
   for(const sm of [shellMesh1, shellMesh2])
     if(sm){ scene.remove(sm); sm.geometry.dispose(); sm.material.dispose(); }
@@ -1551,6 +1633,27 @@ function animate(ts){
     }
     satPts.geometry.attributes.position.needsUpdate = true;
     satPts.geometry.attributes.color.needsUpdate = true;
+    // trail ring buffer: snapshot current positions every 0.12 s of real time
+    if(satTrail){
+      trailTimer += dt;
+      if(trailTimer > 0.12 || !trailPrimed){
+        trailTimer = 0;
+        const tp = satTrail.geometry.attributes.position.array;
+        if(!trailPrimed){ for(let s=0;s<TRAIL_K;s++) tp.set(pos, s*M*3); trailPrimed = true; }
+        else tp.set(pos, trailHead*M*3);
+        trailHead = (trailHead+1) % TRAIL_K;
+        // re-fade by age relative to the ring-buffer head (newest = brightest)
+        const tc = satTrail.geometry.attributes.color.array;
+        for(let s=0;s<TRAIL_K;s++){
+          const age = (s - trailHead + TRAIL_K) % TRAIL_K;     // 0 oldest .. K-1 newest
+          const f = 0.30*(age+1)/TRAIL_K;
+          for(let k=0;k<M;k++){ const i3 = 3*(s*M+k);
+            tc[i3]=0.45*f; tc[i3+1]=0.70*f; tc[i3+2]=1.0*f; }
+        }
+        satTrail.geometry.attributes.color.needsUpdate = true;
+        satTrail.geometry.attributes.position.needsUpdate = true;
+      }
+    }
     const pEv = evRate*dt*speed;
     if(pEv > 0 && Math.random() < Math.min(pEv, 0.5)) spawnCollision(tNow);
     for(let k=collisions.length-1; k>=0; k--){
