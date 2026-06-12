@@ -115,9 +115,9 @@
     <div class="card"><div class="l">Radiator root temperature</div><div class="v" id="mTrad">&ndash;</div><div class="s">GPU junction <span id="mTj"></span> &middot; thermal mass <span id="mMass"></span> kg/sat</div></div>
   </div>
   <div class="verdict" id="mVerdict">&ndash;</div>
-  <div class="chartbox" style="margin-top:10px"><h3>System map: the spacecraft exploded by subsystem (click a subsystem to open its tab)</h3>
-    <div class="mini3d" id="master3d" style="height:max(420px,52vh)">
-      <div class="minihint">drag to rotate &middot; wheel to zoom &middot; click a subsystem to open its tab &middot; all numbers live from the current parameter set</div>
+  <div class="chartbox" style="margin-top:10px"><h3>Live orbital view (same scene as the Collision Avoidance tab)</h3>
+    <div class="mini3d" id="master3d" style="height:max(440px,55vh)">
+      <div class="minihint">drag: rotate &middot; wheel: zoom &middot; light blue = nominal, flashing red = elevated local risk &middot; 💥 = statistical collision at the model rate</div>
     </div>
   </div>
   <p class="footnote">
@@ -1062,7 +1062,7 @@ function setTab(id){
     if(mvThermal) mvThermal.resize();
     if(mvAdcs) mvAdcs.resize();
     if(mvPower) mvPower.resize();
-    if(mvMaster) mvMaster.resize();
+    if(masterView) masterView.resize();
   }, 30);
   currentTab = id;
 }
@@ -1172,7 +1172,8 @@ function miniView(containerId, opts={}){
     onTick: null, onObjectClick: null,
     tick(dt){
       if(el.offsetParent === null) return;          // tab hidden: skip
-      if(ren.domElement.width === 0) view.resize();
+      if(ren.domElement.clientWidth !== el.clientWidth || ren.domElement.clientHeight !== el.clientHeight)
+        view.resize();
       if(auto){ theta += dt*0.15; setCam(); }
       if(view.onTick) view.onTick(dt);
       ren.render(scene, cam);
@@ -1181,7 +1182,7 @@ function miniView(containerId, opts={}){
   setCam();
   return view;
 }
-let mvThermal = null, mvAdcs = null, mvPower = null, mvMaster = null;
+let mvThermal = null, mvAdcs = null, mvPower = null;
 const pmat = (c, e) => new THREE.MeshPhongMaterial({color:c, emissive:e||0x101418, side:THREE.DoubleSide});
 
 /* ---- unified spacecraft builder: the SAME vehicle in every tab, with the
@@ -1346,55 +1347,6 @@ let scene, sceneCAD, camera, renderer, satPts, satData=null, shellMesh1, shellMe
     cadGroup=null, simT=0, lastFrame=0, activeView="const";
 let satTrail=null, trailHead=0, trailTimer=0, trailPrimed=false, glowTex=null;
 const TRAIL_K = 7;
-const SUN_DIR = new THREE.Vector3(5,2,4).normalize();
-function earthMaterial(){
-  return new THREE.ShaderMaterial({
-    uniforms: {sunDir:{value:SUN_DIR}},
-    vertexShader: `
-      varying vec3 vN;
-      void main(){ vN = normalize(position);
-        gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-    fragmentShader: `
-      uniform vec3 sunDir; varying vec3 vN;
-      float hash(vec3 p){ return fract(sin(dot(p, vec3(127.1,311.7,74.7)))*43758.5453); }
-      float vnoise(vec3 p){
-        vec3 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
-        float a000=hash(i), a100=hash(i+vec3(1,0,0)), a010=hash(i+vec3(0,1,0)), a110=hash(i+vec3(1,1,0));
-        float a001=hash(i+vec3(0,0,1)), a101=hash(i+vec3(1,0,1)), a011=hash(i+vec3(0,1,1)), a111=hash(i+vec3(1,1,1));
-        return mix(mix(mix(a000,a100,f.x),mix(a010,a110,f.x),f.y),
-                   mix(mix(a001,a101,f.x),mix(a011,a111,f.x),f.y), f.z); }
-      float fbm(vec3 p){ return 0.55*vnoise(p) + 0.30*vnoise(p*2.3) + 0.15*vnoise(p*5.1); }
-      void main(){
-        vec3 n = normalize(vN);
-        float day = dot(n, sunDir);
-        float cont = smoothstep(0.52, 0.60, fbm(n*2.6 + 7.3));
-        float ice = smoothstep(0.82, 0.93, abs(n.y));
-        vec3 ocean = mix(vec3(0.05,0.13,0.28), vec3(0.08,0.20,0.38), 0.5+0.5*n.y);
-        vec3 land  = mix(vec3(0.12,0.22,0.13), vec3(0.30,0.27,0.18), vnoise(n*7.0));
-        vec3 surf = mix(mix(ocean, land, cont), vec3(0.75,0.80,0.85), ice);
-        float cloud = smoothstep(0.58, 0.72, fbm(n*4.2 - 2.1));
-        surf = mix(surf, vec3(0.80,0.84,0.90), cloud*0.45);
-        float dayF = smoothstep(-0.12, 0.22, day);
-        float lights = step(0.972, hash(floor(n*70.0))) * cont * (1.0-ice);
-        vec3 night = vec3(0.010,0.016,0.036) + lights*vec3(1.0,0.72,0.38)*0.9;
-        vec3 col = mix(night, surf*(0.25+0.85*max(day,0.0)), dayF);
-        gl_FragColor = vec4(col, 1.0); }`
-  });
-}
-function atmoMaterial(){
-  return new THREE.ShaderMaterial({
-    side: THREE.BackSide, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
-    vertexShader: `
-      varying float vI;
-      void main(){
-        vec3 nV = normalize(normalMatrix * normal);
-        vI = pow(0.72 - dot(nV, vec3(0.0,0.0,1.0)), 3.0);
-        gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-    fragmentShader: `
-      varying float vI;
-      void main(){ gl_FragColor = vec4(vec3(0.28,0.55,1.0)*max(vI,0.0), 1.0); }`
-  });
-}
 function starField(radius, count){
   const sp = new Float32Array(count*3);
   for(let k=0;k<count;k++){ const u=Math.random()*2-1, ph=Math.random()*2*Math.PI, st=Math.sqrt(1-u*u);
@@ -1444,13 +1396,14 @@ function init3D(){
   renderer.setClearColor(0x0b0f1a);
   el.appendChild(renderer.domElement);
 
-  /* --- cinematic Earth: procedural day/night shader, atmosphere, stars --- */
-  scene.add(new THREE.Mesh(new THREE.SphereGeometry(1, 64, 48), earthMaterial()));
-  scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.045, 48, 36), atmoMaterial()));
-  scene.add(starField(70, 1400));
+  /* --- Earth as wireframe only (visibility first); background-colored occluder
+         hides far-side satellites so depth still reads --- */
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(0.995, 48, 32),
+    new THREE.MeshBasicMaterial({color:0x0b0f1a})));
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.0, 36, 24),
+    new THREE.MeshBasicMaterial({color:0x2c4f8c, wireframe:true, transparent:true, opacity:0.4})));
+  scene.add(starField(70, 1200));
   scene.add(new THREE.AmbientLight(0x8899bb, 0.55));
-  const sun = new THREE.DirectionalLight(0xffffff, 0.95);
-  sun.position.copy(SUN_DIR.clone().multiplyScalar(10)); scene.add(sun);
 
   sceneCAD.add(new THREE.AmbientLight(0x9aa8c4, 0.85));
   const sun2 = new THREE.DirectionalLight(0xffffff, 0.9); sun2.position.set(60,90,40); sceneCAD.add(sun2);
@@ -1470,7 +1423,7 @@ function init3D(){
     c.dist = Math.min(c.max, Math.max(c.min, c.dist*(1+e.deltaY*0.001))); updateCam(); }, {passive:false});
   window.addEventListener("resize", ()=>{ resize3D();
     if(mvThermal) mvThermal.resize(); if(mvAdcs) mvAdcs.resize(); if(mvPower) mvPower.resize();
-    if(mvMaster) mvMaster.resize(); });
+    if(masterView) masterView.resize(); });
 
   const setView = v => { activeView = v;
     $("tabConst").classList.toggle("active", v==="const");
@@ -1624,7 +1577,8 @@ function animate(ts){
   const speed = parseFloat($("TS").value);
   simT += dt*speed;
   const mainVisible = $("view3d").offsetParent !== null;
-  if(mainVisible && activeView === "const" && satData && satPts){
+  const masterVisible = masterView && masterView.visible();
+  if(((mainVisible && activeView === "const") || masterVisible) && satData && satPts){
     const pos = satPts.geometry.attributes.position.array;
     const colA = satPts.geometry.attributes.color.array;
     const {M,inc,raan,u0,rr,nm} = satData;
@@ -1685,78 +1639,42 @@ function animate(ts){
     }
   }
   if(mainVisible) renderer.render(activeView === "cad" ? sceneCAD : scene, camera);
+  if(masterView) masterView.render();
   if(mvThermal) mvThermal.tick(dt);
   if(mvAdcs) mvAdcs.tick(dt);
   if(mvPower) mvPower.tick(dt);
-  if(mvMaster) mvMaster.tick(dt);
 }
 
-/* ---- master tab: exploded spacecraft system map (click a subsystem -> its tab) ---- */
-function buildMasterScene(inp, ctx, kep){
-  if(!mvMaster) return;
-  const th = ctx && ctx.th, pv = ctx && ctx.pv, ad = ctx && ctx.ad;
-  const g = radGeometry(inp.A_rad ?? inp.A, inp.radCfg);
-  const EXP = Math.max(5, g.wH + 3);                 // explosion offset
-  mvMaster.rebuild(group=>{
-    group.add(starField(300, 700));
-    const cy = 6;
-    const leader = (from, to) => {
-      const lg = new THREE.BufferGeometry().setFromPoints([from, to]);
-      return new THREE.Line(lg, new THREE.LineBasicMaterial({color:0x44506a, transparent:true, opacity:0.7}));
-    };
-    // BUS (collision identity of the whole craft) at center
-    const bus = new THREE.Group(); bus.userData.tab = "tab-collision";
-    bus.add(new THREE.Mesh(new THREE.BoxGeometry(2,2,3), pmat(...PART_COLORS.bus)));
-    bus.position.y = cy; group.add(bus);
-    const lBus = textSprite(`COLLISION · σ = ${fmt(derive(inp).sigma,3)} m² · ${fmt(kep.E/inp.Tyr,3)} nat /yr · residual ${fmt(kep.Eres/inp.Tyr,2)}`, 26);
-    lBus.position.set(0, cy + 3.2, 0); group.add(lBus);
-    // RADIATORS exploded along ±x
-    const rad = new THREE.Group(); rad.userData.tab = "tab-thermal";
-    const wing = sx => { const p = new THREE.Mesh(new THREE.BoxGeometry(g.wL, g.wH, 0.12), pmat(...PART_COLORS.radiator));
-      p.position.x = sx*(1+g.wL/2); return p; };
-    if(inp.radCfg === "4panel"){ for(let k=0;k<4;k++){ const p = wing(1); p.rotation.y = k*Math.PI/2;
-        p.position.set(Math.cos(k*Math.PI/2)*(1+g.wL/2), 0, Math.sin(k*Math.PI/2)*(1+g.wL/2)); rad.add(p);} }
-    else { rad.add(wing(1)); rad.add(wing(-1)); }
-    rad.position.set(EXP + g.wL*0.2, cy, 0); group.add(rad);
-    group.add(leader(new THREE.Vector3(1.2, cy, 0), new THREE.Vector3(rad.position.x - g.wL*0.4, cy, 0)));
-    const lRad = textSprite(`THERMAL · radiators ${fmt(inp.A_rad,3)} m² @ ${th?th.Trad.toFixed(0):"–"} K · ${th?fmt(th.Q/1e3,3):"–"} kW rejected`, 26);
-    lRad.position.set(rad.position.x, cy + g.wH/2 + 2.6, 0); group.add(lRad);
-    // SOLAR exploded along ±z
-    const Apv = pv && isFinite(pv.Apv) ? pv.Apv : 400;
-    const wPv = Math.min(8, Math.max(1.2, Math.sqrt(Apv/2)/2.2)), lPv = (Apv/2)/wPv;
-    const sol = new THREE.Group(); sol.userData.tab = "tab-power";
-    for(const s of [1,-1]){
-      const p = new THREE.Mesh(new THREE.BoxGeometry(wPv, 0.08, lPv), pmat(...PART_COLORS.solar));
-      p.position.z = s*(lPv/2 + 0.6); sol.add(p);
-    }
-    sol.position.set(-EXP - 2, cy, 0); sol.rotation.y = 0.25; group.add(sol);
-    group.add(leader(new THREE.Vector3(-1.2, cy, 0), new THREE.Vector3(sol.position.x + 2, cy, 0)));
-    const lSol = textSprite(`POWER · PV ${fmt(Apv,3)} m² · ${pv?fmt(pv.Ppv_bol/1e3,3):"–"} kW BOL · battery ${pv?fmt(pv.Ebatt_Wh/1e3,2):"–"} kWh`, 26);
-    lSol.position.set(sol.position.x, cy + 2.8, 0); group.add(lSol);
-    // ADCS exploded downward
-    const act = new THREE.Group(); act.userData.tab = "tab-adcs";
-    const Hs = ad ? Math.min(Math.max(ad.Hreq, 2), 300) : 20;
-    const rw = 0.25 + 0.22*Math.log10(Hs+1);
-    for(let k=0;k<4;k++){
-      const a = k*Math.PI/2 + Math.PI/4;
-      const w = new THREE.Mesh(inp.adcs_act==="cmg" ? new THREE.SphereGeometry(rw,16,12)
-                                                    : new THREE.CylinderGeometry(rw,rw,rw*0.7,18), pmat(...PART_COLORS.adcs));
-      w.position.set(1.2*Math.cos(a), 0, 1.2*Math.sin(a));
-      w.rotation.set(0.6*Math.cos(a), 0, 0.6*Math.sin(a));
-      act.add(w);
-    }
-    for(const ax of ["x","y","z"]){
-      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,2.2,8), pmat(...PART_COLORS.adcs));
-      if(ax==="x") rod.rotation.z = Math.PI/2; if(ax==="z") rod.rotation.x = Math.PI/2;
-      rod.position.y = 1.0; act.add(rod);
-    }
-    act.position.set(0, cy - EXP*0.85, 0); group.add(act);
-    group.add(leader(new THREE.Vector3(0, cy-1.2, 0), new THREE.Vector3(0, act.position.y + 1.6, 0)));
-    const lAct = textSprite(`ADCS · H = ${ad?fmt(ad.Hreq,3):"–"} N·m·s · ${ad?fmt(ad.massRWMTQ,3):"–"} kg suite · GG ${ad?fmt(ad.Tgg*1e3,2):"–"} mN·m`, 26);
-    lAct.position.set(0, act.position.y - 2.2, 0); group.add(lAct);
-  }, Math.max(26, 2.0*(EXP + g.wL + 4)));
-  mvMaster.onTick = null;
-  mvMaster.onObjectClick = tab => setTab(tab);
+/* ---- master tab: second window onto the SAME constellation scene ---- */
+let masterView = null;
+function initMasterView(){
+  const el = $("master3d");
+  const cam = new THREE.PerspectiveCamera(45, 2, 0.1, 5000);
+  const ren = new THREE.WebGLRenderer({antialias:true});
+  ren.setClearColor(0x0b0f1a);
+  el.appendChild(ren.domElement);
+  let theta=0.6, phi=0.35, dist=3.8, drag=false, px=0, py=0;
+  const setCam = ()=>{ cam.position.set(dist*Math.cos(phi)*Math.sin(theta), dist*Math.sin(phi),
+    dist*Math.cos(phi)*Math.cos(theta)); cam.lookAt(0,0,0); };
+  el.addEventListener("mousedown", e=>{drag=true;px=e.clientX;py=e.clientY;});
+  window.addEventListener("mouseup", ()=>drag=false);
+  el.addEventListener("mousemove", e=>{ if(!drag) return;
+    theta -= (e.clientX-px)*0.005; phi = Math.min(1.4, Math.max(-1.4, phi+(e.clientY-py)*0.005));
+    px=e.clientX; py=e.clientY; setCam(); });
+  el.addEventListener("wheel", e=>{ e.preventDefault();
+    dist = Math.min(12, Math.max(1.6, dist*(1+e.deltaY*0.001))); setCam(); }, {passive:false});
+  setCam();
+  masterView = {
+    visible(){ return el.offsetParent !== null; },
+    resize(){ if(el.clientWidth === 0) return;
+      cam.aspect = el.clientWidth/el.clientHeight; cam.updateProjectionMatrix();
+      ren.setSize(el.clientWidth, el.clientHeight); },
+    render(){ if(!this.visible()) return;
+      if(ren.domElement.clientWidth !== el.clientWidth || ren.domElement.clientHeight !== el.clientHeight)
+        this.resize();
+      ren.render(scene, cam); }
+  };
+  masterView.resize();
 }
 
 /* ---------------- update cycle ---------------- */
@@ -1979,7 +1897,6 @@ function refresh(){
 
   rebuildSats(inp);
   rebuildCAD(inp, lastCtx);
-  buildMasterScene(inp, lastCtx, kep);
 }
 let lastCtx = null;
 
@@ -2033,7 +1950,7 @@ window.addEventListener("load", ()=>{
   mvThermal = miniView("thermal3d");
   mvAdcs = miniView("adcs3d");
   mvPower = miniView("power3d");
-  mvMaster = miniView("master3d", {grid:false});
+  initMasterView();
   document.querySelectorAll("nav#tabs button").forEach(b=>
     b.addEventListener("click", ()=>setTab(b.dataset.tab)));
   document.querySelectorAll("input,select").forEach(el=>{
