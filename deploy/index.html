@@ -419,41 +419,17 @@
 
 <!-- ================= VALIDATION ================= -->
 <section class="tabpane" id="tab-validation">
-  <h2>Validation against published benchmarks (computed at the fixed reference case, independent of the sliders)</h2>
+  <h2>Validation against Turyshev, arXiv:2604.27197 (computed at the fixed reference case, independent of the sliders)</h2>
   <p class="footnote" style="margin:0 0 10px">
     Reference case: N = 80,000, A = 120 m&sup2;, &sigma; = 4A, 500-800 km, mix 43/53/70/97.6&deg;.
-    Benchmark A: independent due-diligence reconstruction, "Feasibility of an Orbital Data Center"
-    (10 June 2026), which rebuilt this model from the governing integral.
-    Benchmark B: S. G. Turyshev, "Orbital Data Centers: Spacecraft Constraints and Economic
-    Viability", arXiv:2604.27197 (May 2026), an independent power/thermal/economics closure model.
+    Benchmark: S. G. Turyshev, "Orbital Data Centers: Spacecraft Constraints and Economic
+    Viability", arXiv:2604.27197 (May 2026), an independent power/thermal/economics closure model
+    built at JPL. The comparison covers the shared thermal and power sizing layer; Turyshev does
+    not model fleet self-collisions.
   </p>
-  <div class="chartbox"><h3>This model vs benchmarks: ratio of our value to the published value (1.0 = perfect agreement)</h3>
+  <div class="chartbox"><h3>This model vs Turyshev: our value over his anchor (dots), his published ranges (gray bands), 1.0 = his anchor or range midpoint</h3>
     <div style="height:250px"><canvas id="chVal"></canvas></div></div>
-  <h2>vs Benchmark A (independent collision-model reconstruction)</h2>
-  <table class="data">
-    <tr><th>Quantity</th><th>This model</th><th>Benchmark A</th><th>Status</th></tr>
-    <tr><td>Kinetic-gas baseline [collisions/yr]</td><td id="vaKin">&ndash;</td><td>2,608</td><td id="stKin">&ndash;</td></tr>
-    <tr><td>Keplerian rate [collisions/yr]</td><td id="vaKep">&ndash;</td><td>1,941.3</td><td id="stKep">&ndash;</td></tr>
-    <tr><td>Keplerian / kinetic ratio</td><td id="vaRatio">&ndash;</td><td>0.744</td><td id="stRatio">&ndash;</td></tr>
-    <tr><td>Mean natural rate per satellite [/yr]</td><td id="vaNu">&ndash;</td><td>0.0485</td><td id="stNu">&ndash;</td></tr>
-    <tr><td>Single 10 km shell at 650 km [collisions/yr]</td><td id="vaThin">&ndash;</td><td>~58,000</td><td id="stThin">&ndash;</td></tr>
-    <tr><td>N for 1 natural collision/yr (A = 120 m&sup2;)</td><td id="vaN1">&ndash;</td><td>1,816</td><td id="stN1">&ndash;</td></tr>
-    <tr><td>A for 1 natural collision/yr (N = 80k) [m&sup2;]</td><td id="vaA1">&ndash;</td><td>0.062</td><td id="stA1">&ndash;</td></tr>
-    <tr><td>f_fail for &lt;1 residual collision/yr</td><td id="vaFf">&ndash;</td><td>5.15e-4</td><td id="stFf">&ndash;</td></tr>
-    <tr><td>Cascade branching &kappa;</td><td id="vaKappa">&ndash;</td><td>~408</td><td id="stKappa">&ndash;</td></tr>
-    <tr><td>Fragment residence for &kappa; = 1 [days]</td><td id="vaTau">&ndash;</td><td>~22</td><td id="stTau">&ndash;</td></tr>
-    <tr><td>Screening load within 1 km [/sat/yr]</td><td id="vaScr">&ndash;</td><td>~320</td><td id="stScr">&ndash;</td></tr>
-    <tr><td>External &gt;10 cm encounters, fleet [/yr]</td><td id="vaX10">&ndash;</td><td>~400-600 (indicative figure)</td><td id="stX10">&ndash;</td></tr>
-    <tr><td>External &gt;1 cm lethal hits, fleet [/yr]</td><td id="vaX1">&ndash;</td><td>~1,000-4,500 (incl. &times;3 band)</td><td id="stX1">&ndash;</td></tr>
-  </table>
-  <p class="footnote">
-    The first eleven rows agree to three or more digits: Benchmark A is an independent
-    reconstruction of the same physics and reproduces this engine. The two external-debris rows
-    use different calibrations of the same flux method: this model anchors the &gt;1 cm population
-    to ESA object counts (~1.2 million objects of 1-10 cm in LEO), which lands at the upper edge of
-    Benchmark A's indicative uncertainty band. Use the environment scale slider for sensitivity.
-  </p>
-  <h2>vs Benchmark B (Turyshev, arXiv:2604.27197)</h2>
+  <h2>Comparison detail</h2>
   <table class="data">
     <tr><th>Quantity</th><th>This model (defaults)</th><th>Benchmark B</th><th>Comment</th></tr>
     <tr><td>Radiator area per IT kilowatt</td><td id="vbArea">&ndash;</td><td>2.5 m&sup2;/kW (1 MW anchor)</td>
@@ -1134,13 +1110,16 @@ function makeCharts(){
       y:{grid:{color:gridCol},ticks:{color:"#2a8be0"},title:{display:true,text:"area [m²]",color:"#2a8be0"}},
       y2:{position:"right",grid:{drawOnChartArea:false},ticks:{color:"#ffa94d"},title:{display:true,text:"collisions/yr",color:"#ffa94d"}}}})});
   chVal = new Chart($("chVal"), {type:"bar", data:{labels:[], datasets:[
-      {label:"this model / benchmark", data:[], backgroundColor:[], borderWidth:0},
-      {label:"perfect agreement", type:"line", data:[], borderColor:"#dfe7f5",
+      {label:"Turyshev published range (normalized to midpoint)", data:[],
+       backgroundColor:"rgba(143,160,189,.30)", borderWidth:0, barPercentage:0.55},
+      {label:"this model", type:"line", showLine:false, data:[],
+       pointBackgroundColor:[], pointBorderColor:[], pointRadius:6, pointStyle:"circle"},
+      {label:"anchor / range midpoint", type:"line", data:[], borderColor:"#dfe7f5",
        borderDash:[6,4], borderWidth:1.2, pointRadius:0}]},
     options:base({scales:{
-      x:{grid:{display:false},ticks:{color:tickCol,font:{size:10},maxRotation:60,minRotation:40}},
-      y:{grid:{color:gridCol},ticks:{color:tickCol},suggestedMin:0,suggestedMax:2.1,
-         title:{display:true,text:"ratio",color:tickCol}}}})});
+      x:{grid:{display:false},ticks:{color:tickCol,font:{size:10},maxRotation:50,minRotation:30}},
+      y:{grid:{color:gridCol},ticks:{color:tickCol},suggestedMin:0,suggestedMax:2.0,
+         title:{display:true,text:"normalized value",color:tickCol}}}})});
   chartsByTab = {"tab-collision":[chSweep,chLat,chVel], "tab-thermal":[chThermal],
                  "tab-external":[chExt], "tab-adcs":[chAdcs], "tab-power":[chPower],
                  "tab-validation":[chVal]};
@@ -1929,66 +1908,35 @@ function schedule(){ clearTimeout(pending); pending = setTimeout(refresh, 120); 
 /* Validation tab: computed once at the FIXED reference case (slider-independent). */
 function fillValidation(){
   const inp = defaultInputs();
-  const kin = kineticModel(inp), kep = keplerianModel(inp);
-  const thn = keplerianModel({...inp, rprof:"thin_shell"});
-  const cc = cascadeCriterion(inp, derive(inp));
-  const ext = externalModel(inp);
   const th = thermalModel(inp);
-  const E = kep.E;
-  const rows = [
-    ["Kin", kin.E, 2608, 0.005],
-    ["Kep", E, 1941.3, 0.005],
-    ["Ratio", kep.ratio, 0.744, 0.005],
-    ["Nu", kep.nuYr, 0.0485, 0.01],
-    ["Thin", thn.E, 58000, 0.05],
-    ["N1", inp.N/Math.sqrt(E), 1816, 0.01],
-    ["A1", inp.A/E, 0.062, 0.02],
-    ["Ff", 1/E, 5.15e-4, 0.01],
-    ["Kappa", cc.kappa, 408, 0.01],
-    ["Tau", cc.tauCrit_days, 22, 0.05],
-    ["Scr", kep.nuYr*Math.PI*1e6/derive(inp).sigma, 320, 0.02],
-  ];
-  for(const [key, ours, ref, tol] of rows){
-    $("va"+key).textContent = fmt(ours, 4);
-    const ok = Math.abs(ours-ref)/ref <= tol;
-    $("st"+key).textContent = ok ? "✓ match" : "≈ "+fmt(ours/ref,3)+"×";
-    $("st"+key).style.color = ok ? "#5fe0ae" : "var(--amber)";
-  }
-  $("vaX10").textContent = fmt(ext.fleetEnc10Yr, 3);
-  $("stX10").textContent = "≈ same order"; $("stX10").style.color = "var(--amber)";
-  $("vaX1").textContent = fmt(ext.fleetHits1Yr, 3);
-  $("stX1").textContent = "above the indicative band (ESA-count anchored)"; $("stX1").style.color = "var(--amber)";
+  const pvDD = powerModel({...inp, pw_orbit:"dawndusk"}, th);
   $("vbArea").textContent = (th.A/inp.th_PIT_kW).toFixed(2)+" m²/kW";
   $("vbTrad").textContent = th.Trad.toFixed(0)+" K";
   $("vbT2").textContent = th.Trad.toFixed(0)+" K ("+(th.Trad-273.15).toFixed(0)+" °C)";
   $("vbSig").textContent = inp.th_sigRad+" kg/m²";
-  const pvDD = powerModel({...inp, pw_orbit:"dawndusk"}, th);
   $("vbPV").textContent = pvDD.ApvPerKw.toFixed(2)+" m²/kW";
   $("vbMass").textContent = th.specific.toFixed(1)+" kg/kW";
   $("vbFleet").textContent = inp.N.toLocaleString("en-US")+" × "+inp.th_PIT_kW+" kW = "
     +(inp.N*inp.th_PIT_kW/1e6).toFixed(1)+" GW IT";
-  // ratio column chart: ours / published (1.0 = perfect agreement)
+  // chart: dots = our value / Turyshev anchor (or range midpoint); gray bands = his ranges
+  // [label, ours, lo, hi]  (lo == hi for point anchors)
   const bars = [
-    ["kinetic E", kin.E, 2608, 0.005],
-    ["Keplerian E", E, 1941.3, 0.005],
-    ["Kep/kin ratio", kep.ratio, 0.744, 0.005],
-    ["ν per sat", kep.nuYr, 0.0485, 0.01],
-    ["thin shell", thn.E, 58000, 0.05],
-    ["N @1/yr", inp.N/Math.sqrt(E), 1816, 0.01],
-    ["A @1/yr", inp.A/E, 0.062, 0.02],
-    ["f_fail @1/yr", 1/E, 5.15e-4, 0.01],
-    ["κ", cc.kappa, 408, 0.01],
-    ["τ(κ=1)", cc.tauCrit_days, 22, 0.05],
-    ["screening", kep.nuYr*Math.PI*1e6/derive(inp).sigma, 320, 0.02],
-    ["PV m²/kW (B)", pvDD.ApvPerKw, 5.64, 0.10],
-    ["ext >10 cm", ext.fleetEnc10Yr, 500, 0.60],
-    ["ext >1 cm", ext.fleetHits1Yr, 2750, 1.10],
+    ["PV area per IT kW", pvDD.ApvPerKw, 5.64, 5.64],
+    ["radiator area per IT kW", th.A/inp.th_PIT_kW, 2.5, 2.5],
+    ["radiator temperature", th.Trad, 300, 400],
+    ["radiator areal density", inp.th_sigRad, 2, 10],
+    ["thermal mass per IT kW", th.specific, 5, 25],
   ];
   chVal.data.labels = bars.map(b=>b[0]);
-  chVal.data.datasets[0].data = bars.map(b=>b[1]/b[2]);
-  chVal.data.datasets[0].backgroundColor = bars.map(b=>
-    Math.abs(b[1]/b[2]-1) <= b[3] ? "rgba(57,201,142,.75)" : "rgba(255,206,107,.75)");
-  chVal.data.datasets[1].data = bars.map(()=>1);
+  chVal.data.datasets[0].data = bars.map(([,,lo,hi])=>{
+    const mid = 0.5*(lo+hi); return lo===hi ? null : [lo/mid, hi/mid]; });
+  chVal.data.datasets[1].data = bars.map(([,o,lo,hi])=>o/(0.5*(lo+hi)));
+  const cols = bars.map(([,o,lo,hi])=>{
+    const ok = lo===hi ? Math.abs(o/lo-1) <= 0.10 : (o >= lo && o <= hi);
+    return ok ? "#39c98e" : "#ffce6b"; });
+  chVal.data.datasets[1].pointBackgroundColor = cols;
+  chVal.data.datasets[1].pointBorderColor = cols;
+  chVal.data.datasets[2].data = bars.map(()=>1);
   chVal.update();
 }
 
