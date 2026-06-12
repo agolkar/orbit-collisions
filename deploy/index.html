@@ -1123,7 +1123,7 @@ function makeCharts(){
 }
 
 /* ---------------- mini 3D views (thermal config, ADCS actuators) ---------------- */
-function miniView(containerId){
+function miniView(containerId, opts={}){
   const el = $(containerId);
   const scene = new THREE.Scene();
   const cam = new THREE.PerspectiveCamera(45, 2, 0.1, 2000);
@@ -1132,7 +1132,7 @@ function miniView(containerId){
   el.appendChild(ren.domElement);
   scene.add(new THREE.AmbientLight(0x9aa8c4, 0.9));
   const dl = new THREE.DirectionalLight(0xffffff, 0.85); dl.position.set(40,60,30); scene.add(dl);
-  scene.add(new THREE.GridHelper(80, 16, 0x33486e, 0x1b2940));
+  if(opts.grid !== false) scene.add(new THREE.GridHelper(80, 16, 0x33486e, 0x1b2940));
   let group = null, theta = 0.7, phi = 0.32, dist = 36, drag=false, px=0, py=0, auto=true;
   const setCam = ()=>{ cam.position.set(dist*Math.cos(phi)*Math.sin(theta), 4+dist*Math.sin(phi),
                        dist*Math.cos(phi)*Math.cos(theta)); cam.lookAt(0,3,0); };
@@ -1334,6 +1334,64 @@ let scene, sceneCAD, camera, renderer, satPts, satData=null, shellMesh1, shellMe
     cadGroup=null, simT=0, lastFrame=0, activeView="const";
 let satTrail=null, trailHead=0, trailTimer=0, trailPrimed=false, glowTex=null;
 const TRAIL_K = 7;
+const SUN_DIR = new THREE.Vector3(5,2,4).normalize();
+function earthMaterial(){
+  return new THREE.ShaderMaterial({
+    uniforms: {sunDir:{value:SUN_DIR}},
+    vertexShader: `
+      varying vec3 vN;
+      void main(){ vN = normalize(position);
+        gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+    fragmentShader: `
+      uniform vec3 sunDir; varying vec3 vN;
+      float hash(vec3 p){ return fract(sin(dot(p, vec3(127.1,311.7,74.7)))*43758.5453); }
+      float vnoise(vec3 p){
+        vec3 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
+        float a000=hash(i), a100=hash(i+vec3(1,0,0)), a010=hash(i+vec3(0,1,0)), a110=hash(i+vec3(1,1,0));
+        float a001=hash(i+vec3(0,0,1)), a101=hash(i+vec3(1,0,1)), a011=hash(i+vec3(0,1,1)), a111=hash(i+vec3(1,1,1));
+        return mix(mix(mix(a000,a100,f.x),mix(a010,a110,f.x),f.y),
+                   mix(mix(a001,a101,f.x),mix(a011,a111,f.x),f.y), f.z); }
+      float fbm(vec3 p){ return 0.55*vnoise(p) + 0.30*vnoise(p*2.3) + 0.15*vnoise(p*5.1); }
+      void main(){
+        vec3 n = normalize(vN);
+        float day = dot(n, sunDir);
+        float cont = smoothstep(0.52, 0.60, fbm(n*2.6 + 7.3));
+        float ice = smoothstep(0.82, 0.93, abs(n.y));
+        vec3 ocean = mix(vec3(0.05,0.13,0.28), vec3(0.08,0.20,0.38), 0.5+0.5*n.y);
+        vec3 land  = mix(vec3(0.12,0.22,0.13), vec3(0.30,0.27,0.18), vnoise(n*7.0));
+        vec3 surf = mix(mix(ocean, land, cont), vec3(0.75,0.80,0.85), ice);
+        float cloud = smoothstep(0.58, 0.72, fbm(n*4.2 - 2.1));
+        surf = mix(surf, vec3(0.80,0.84,0.90), cloud*0.45);
+        float dayF = smoothstep(-0.12, 0.22, day);
+        float lights = step(0.972, hash(floor(n*70.0))) * cont * (1.0-ice);
+        vec3 night = vec3(0.010,0.016,0.036) + lights*vec3(1.0,0.72,0.38)*0.9;
+        vec3 col = mix(night, surf*(0.25+0.85*max(day,0.0)), dayF);
+        gl_FragColor = vec4(col, 1.0); }`
+  });
+}
+function atmoMaterial(){
+  return new THREE.ShaderMaterial({
+    side: THREE.BackSide, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+    vertexShader: `
+      varying float vI;
+      void main(){
+        vec3 nV = normalize(normalMatrix * normal);
+        vI = pow(0.72 - dot(nV, vec3(0.0,0.0,1.0)), 3.0);
+        gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+    fragmentShader: `
+      varying float vI;
+      void main(){ gl_FragColor = vec4(vec3(0.28,0.55,1.0)*max(vI,0.0), 1.0); }`
+  });
+}
+function starField(radius, count){
+  const sp = new Float32Array(count*3);
+  for(let k=0;k<count;k++){ const u=Math.random()*2-1, ph=Math.random()*2*Math.PI, st=Math.sqrt(1-u*u);
+    sp[3*k]=radius*st*Math.cos(ph); sp[3*k+1]=radius*u; sp[3*k+2]=radius*st*Math.sin(ph); }
+  const sg = new THREE.BufferGeometry();
+  sg.setAttribute("position", new THREE.BufferAttribute(sp, 3));
+  return new THREE.Points(sg, new THREE.PointsMaterial({color:0xaebfdd, size:1.3,
+    sizeAttenuation:false, transparent:true, opacity:0.75, depthWrite:false}));
+}
 function glowTexture(){
   if(glowTex) return glowTex;
   const cv = document.createElement("canvas"); cv.width = cv.height = 64;
@@ -1375,62 +1433,9 @@ function init3D(){
   el.appendChild(renderer.domElement);
 
   /* --- cinematic Earth: procedural day/night shader, atmosphere, stars --- */
-  const SUN_DIR = new THREE.Vector3(5,2,4).normalize();
-  const earth = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 48), new THREE.ShaderMaterial({
-    uniforms: {sunDir:{value:SUN_DIR}},
-    vertexShader: `
-      varying vec3 vN;
-      void main(){ vN = normalize(position);
-        gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-    fragmentShader: `
-      uniform vec3 sunDir; varying vec3 vN;
-      float hash(vec3 p){ return fract(sin(dot(p, vec3(127.1,311.7,74.7)))*43758.5453); }
-      float vnoise(vec3 p){
-        vec3 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
-        float a000=hash(i), a100=hash(i+vec3(1,0,0)), a010=hash(i+vec3(0,1,0)), a110=hash(i+vec3(1,1,0));
-        float a001=hash(i+vec3(0,0,1)), a101=hash(i+vec3(1,0,1)), a011=hash(i+vec3(0,1,1)), a111=hash(i+vec3(1,1,1));
-        return mix(mix(mix(a000,a100,f.x),mix(a010,a110,f.x),f.y),
-                   mix(mix(a001,a101,f.x),mix(a011,a111,f.x),f.y), f.z); }
-      float fbm(vec3 p){ return 0.55*vnoise(p) + 0.30*vnoise(p*2.3) + 0.15*vnoise(p*5.1); }
-      void main(){
-        vec3 n = normalize(vN);
-        float day = dot(n, sunDir);
-        float cont = smoothstep(0.52, 0.60, fbm(n*2.6 + 7.3));
-        float ice = smoothstep(0.82, 0.93, abs(n.y));
-        vec3 ocean = mix(vec3(0.05,0.13,0.28), vec3(0.08,0.20,0.38), 0.5+0.5*n.y);
-        vec3 land  = mix(vec3(0.12,0.22,0.13), vec3(0.30,0.27,0.18), vnoise(n*7.0));
-        vec3 surf = mix(mix(ocean, land, cont), vec3(0.75,0.80,0.85), ice);
-        float cloud = smoothstep(0.58, 0.72, fbm(n*4.2 - 2.1));
-        surf = mix(surf, vec3(0.80,0.84,0.90), cloud*0.45);
-        float dayF = smoothstep(-0.12, 0.22, day);
-        float lights = step(0.972, hash(floor(n*70.0))) * cont * (1.0-ice);
-        vec3 night = vec3(0.010,0.016,0.036) + lights*vec3(1.0,0.72,0.38)*0.9;
-        vec3 col = mix(night, surf*(0.25+0.85*max(day,0.0)), dayF);
-        gl_FragColor = vec4(col, 1.0); }`
-  }));
-  scene.add(earth);
-  const atmo = new THREE.Mesh(new THREE.SphereGeometry(1.045, 48, 36), new THREE.ShaderMaterial({
-    side: THREE.BackSide, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
-    vertexShader: `
-      varying float vI;
-      void main(){
-        vec3 nV = normalize(normalMatrix * normal);
-        vI = pow(0.72 - dot(nV, vec3(0.0,0.0,1.0)), 3.0);
-        gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-    fragmentShader: `
-      varying float vI;
-      void main(){ gl_FragColor = vec4(vec3(0.28,0.55,1.0)*max(vI,0.0), 1.0); }`
-  }));
-  scene.add(atmo);
-  { // star field
-    const NS = 1400, sp = new Float32Array(NS*3);
-    for(let k=0;k<NS;k++){ const u=Math.random()*2-1, ph=Math.random()*2*Math.PI, st=Math.sqrt(1-u*u);
-      sp[3*k]=70*st*Math.cos(ph); sp[3*k+1]=70*u; sp[3*k+2]=70*st*Math.sin(ph); }
-    const sg = new THREE.BufferGeometry();
-    sg.setAttribute("position", new THREE.BufferAttribute(sp, 3));
-    scene.add(new THREE.Points(sg, new THREE.PointsMaterial({color:0xaebfdd, size:1.3,
-      sizeAttenuation:false, transparent:true, opacity:0.75, depthWrite:false})));
-  }
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(1, 64, 48), earthMaterial()));
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.045, 48, 36), atmoMaterial()));
+  scene.add(starField(70, 1400));
   scene.add(new THREE.AmbientLight(0x8899bb, 0.55));
   const sun = new THREE.DirectionalLight(0xffffff, 0.95);
   sun.position.copy(SUN_DIR.clone().multiplyScalar(10)); scene.add(sun);
@@ -1681,12 +1686,11 @@ function buildMasterScene(inp, ctx, kepE){
   const M = 420;
   const sim = {RE3, M, t:0, boomT:0, pts:null, els:null, booms:[]};
   mvMaster.rebuild(group=>{
-    const earth = new THREE.Mesh(new THREE.SphereGeometry(RE3, 40, 28),
-      new THREE.MeshPhongMaterial({color:0x1d3a6e, emissive:0x0a1830, shininess:8}));
+    const earth = new THREE.Mesh(new THREE.SphereGeometry(RE3, 56, 40), earthMaterial());
     earth.position.y = 3; group.add(earth);
-    const grid = new THREE.Mesh(new THREE.SphereGeometry(RE3*1.002, 30, 20),
-      new THREE.MeshBasicMaterial({color:0x2c4f8c, wireframe:true, transparent:true, opacity:0.18}));
-    grid.position.y = 3; group.add(grid);
+    const atmo = new THREE.Mesh(new THREE.SphereGeometry(RE3*1.045, 44, 32), atmoMaterial());
+    atmo.position.y = 3; group.add(atmo);
+    group.add(starField(120, 900));
     // sampled population (same element distributions as the main view)
     const d = derive(inp);
     let rnd = 777; const rand = ()=>{ rnd = (rnd*1664525+1013904223)>>>0; return rnd/4294967296; };
@@ -1704,7 +1708,9 @@ function buildMasterScene(inp, ctx, kepE){
     sim.els = {inc, raan, u0, rr, nm};
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(M*3), 3));
-    sim.pts = new THREE.Points(geo, new THREE.PointsMaterial({color:0x8cd2ff, size:0.09, sizeAttenuation:true}));
+    sim.pts = new THREE.Points(geo, new THREE.PointsMaterial({color:0x8cd2ff, size:0.22,
+      map:glowTexture(), sizeAttenuation:true, transparent:true,
+      blending:THREE.AdditiveBlending, depthWrite:false}));
     group.add(sim.pts);
     sim.group = group;
     const l1 = textSprite(`the fleet: N = ${inp.N.toLocaleString("en-US")} · ${fmt(kepE,3)} natural collisions/yr`, 9);
@@ -2026,7 +2032,7 @@ window.addEventListener("load", ()=>{
   mvThermal = miniView("thermal3d");
   mvAdcs = miniView("adcs3d");
   mvPower = miniView("power3d");
-  mvMaster = miniView("master3d");
+  mvMaster = miniView("master3d", {grid:false});
   document.querySelectorAll("nav#tabs button").forEach(b=>
     b.addEventListener("click", ()=>setTab(b.dataset.tab)));
   document.querySelectorAll("input,select").forEach(el=>{
