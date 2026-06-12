@@ -44,6 +44,16 @@ cross-section. Geometry cannot fix the problem (E_acc = 1/yr needs a shell beyon
 
 ## Web app (orbit_collisions_app.html)
 
+Organized in six tabs: Master (cross-layer dashboard and verdict), Parameters &
+Assumptions (single shared parameter set + assumptions register), Collision Avoidance
+(the Keplerian/kinetic engine, 3D view, charts), Thermal (two-phase pumped-loop sizing;
+GPU junction temperature drives radiator area, optionally driving the collision
+cross-section), External Debris (ORDEM/MASTER-calibrated screening flux: trackable
+conjunction workload + lethal non-trackable losses), and Validation (live comparison
+against two independent benchmarks: the external due-diligence reconstruction of
+10 June 2026 and Turyshev arXiv:2604.27197).
+
+
 Single-file interactive explorer (Phase 3): live parameters, both models, 3D
 constellation with risk-gradient coloring (light blue nominal, flashing red at
 high local collision-rate density, collision markers at the natural rate in

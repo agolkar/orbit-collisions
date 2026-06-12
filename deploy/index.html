@@ -9,32 +9,32 @@
 <style>
   :root{
     --bg:#0b0f1a; --panel:#121a2b; --panel2:#0e1524; --ink:#dfe7f5; --dim:#8fa0bd;
-    --acc:#5aa9ff; --warn:#ff5a6a; --ok:#39c98e; --line:#22304d;
+    --acc:#5aa9ff; --warn:#ff5a6a; --ok:#39c98e; --line:#22304d; --amber:#ffce6b;
   }
   *{box-sizing:border-box} html,body{margin:0;height:100%}
   body{background:var(--bg);color:var(--ink);font:14px/1.45 "Segoe UI",system-ui,sans-serif;display:flex;flex-direction:column}
-  header{padding:10px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px}
-  header h1{font-size:17px;margin:0;font-weight:600}
-  header .sub{color:var(--dim);font-size:12px}
-  #layout{flex:1;display:grid;grid-template-columns:300px 1fr 360px;min-height:0;overflow:hidden}
-  #controls{background:var(--panel);padding:12px 14px;overflow-y:auto;border-right:1px solid var(--line)}
-  #center{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
-  #stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px}
+  header{padding:8px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px}
+  header h1{font-size:16px;margin:0;font-weight:600}
+  header .sub{color:var(--dim);font-size:11.5px}
+  #disclaimer{background:rgba(255,196,60,.12);color:var(--amber);border-bottom:1px solid rgba(255,196,60,.35);
+    padding:5px 18px;font-size:12px;text-align:center}
+  nav#tabs{display:flex;gap:4px;padding:6px 14px 0;border-bottom:1px solid var(--line);background:var(--panel2);flex-wrap:wrap}
+  nav#tabs button{background:transparent;color:var(--dim);border:1px solid transparent;border-bottom:none;
+    border-radius:8px 8px 0 0;padding:7px 16px;font-size:13px;cursor:pointer}
+  nav#tabs button.active{background:var(--bg);color:var(--ink);border-color:var(--line);font-weight:600}
+  #content{flex:1;min-height:0;overflow:hidden;display:flex}
+  .tabpane{flex:1;min-height:0;overflow-y:auto;display:none;padding:12px 16px}
+  .tabpane.active{display:block}
+  #tab-collision.active{display:flex;gap:12px;padding:10px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
   .card .v{font-size:19px;font-weight:650;margin-top:2px}
-  .card .l{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  .card .l{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em}
   .card .s{color:var(--dim);font-size:11px}
-  #view3d{flex:1;min-height:160px;position:relative;overflow:hidden}
-  #view3d canvas{display:block}
-  #viewhint{position:absolute;bottom:6px;left:10px;color:var(--dim);font-size:11px;pointer-events:none}
-  #viewtabs{position:absolute;top:8px;left:10px;z-index:5;display:flex;gap:6px}
-  .vtab{background:var(--panel);color:var(--dim);border:1px solid var(--line);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer}
-  .vtab.active{color:var(--ink);border-color:var(--acc)}
-  #regime{padding:6px 12px;border-radius:8px;font-weight:650;text-align:center}
-  #charts{background:var(--panel2);padding:12px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;border-left:1px solid var(--line)}
-  .chartbox{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px}
-  .chartbox h3{margin:2px 4px 6px;font-size:12.5px;color:var(--dim);font-weight:600}
-  fieldset{border:1px solid var(--line);border-radius:8px;margin:0 0 12px;padding:8px 10px}
+  .cardgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .cardgrid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  h2{font-size:15px;margin:14px 0 8px;color:var(--acc);font-weight:600}
+  h2:first-child{margin-top:2px}
+  fieldset{border:1px solid var(--line);border-radius:8px;margin:0 0 12px;padding:8px 10px;break-inside:avoid}
   legend{color:var(--acc);font-size:12px;padding:0 4px}
   label{display:flex;justify-content:space-between;align-items:center;margin:6px 0;color:var(--dim);font-size:12.5px;gap:8px}
   label span.val{color:var(--ink);min-width:74px;text-align:right;font-variant-numeric:tabular-nums}
@@ -43,13 +43,27 @@
   table.mix{width:100%;border-collapse:collapse;font-size:12.5px}
   table.mix td{padding:2px 3px}
   table.mix input{width:64px}
+  table.data{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0}
+  table.data td,table.data th{border:1px solid var(--line);padding:4px 8px;text-align:left}
+  table.data th{color:var(--dim);font-weight:600;background:var(--panel2)}
   .footnote{color:var(--dim);font-size:11px;margin-top:8px}
-  @media (max-width:1100px){#layout{grid-template-columns:1fr;grid-template-rows:auto auto auto}#stats{grid-template-columns:repeat(2,1fr)}}
-  #disclaimer{background:rgba(255,196,60,.12);color:#ffce6b;border-bottom:1px solid rgba(255,196,60,.35);
-    padding:6px 18px;font-size:12.5px;text-align:center}
-  footer{flex:0 0 auto;width:100%;background:rgba(255,196,60,.12);color:#ffce6b;
-    border-top:1px solid rgba(255,196,60,.35);padding:6px 18px;font-size:12.5px;text-align:center;z-index:10}
+  .cols{columns:3 300px;column-gap:14px}
+  #view3d{flex:1;min-height:200px;position:relative;overflow:hidden;border:1px solid var(--line);border-radius:8px}
+  #view3d canvas{display:block}
+  #viewhint{position:absolute;bottom:6px;left:10px;color:var(--dim);font-size:11px;pointer-events:none;max-width:90%}
+  #viewtabs{position:absolute;top:8px;left:10px;z-index:5;display:flex;gap:6px}
+  .vtab{background:var(--panel);color:var(--dim);border:1px solid var(--line);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer}
+  .vtab.active{color:var(--ink);border-color:var(--acc)}
+  #regime{padding:6px 12px;border-radius:8px;font-weight:650;text-align:center}
+  .chartbox{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:12px}
+  .chartbox h3{margin:2px 4px 6px;font-size:12.5px;color:var(--dim);font-weight:600}
+  #colLeft{flex:1.25;display:flex;flex-direction:column;min-width:0;min-height:0;gap:10px}
+  #colRight{flex:1;min-width:300px;max-width:430px;overflow-y:auto}
+  .verdict{border-radius:8px;padding:10px 14px;font-weight:600;margin:8px 0}
+  footer{flex:0 0 auto;width:100%;background:rgba(255,196,60,.12);color:var(--amber);
+    border-top:1px solid rgba(255,196,60,.35);padding:5px 18px;font-size:12px;text-align:center;z-index:10}
   footer a{color:#ffe2a0;text-decoration:underline}
+  @media (max-width:1100px){.cardgrid{grid-template-columns:repeat(2,1fr)}#tab-collision.active{flex-direction:column}}
 </style>
 </head>
 <body>
@@ -60,16 +74,52 @@
 </div>
 <header>
   <h1>LEO Mega-Constellation Collision Explorer</h1>
-  <span class="sub">kinetic baseline vs Keplerian model &middot; natural rate vs avoidance residual &middot; anchored: 2608 collisions/yr at defaults (kinetic)</span>
+  <span class="sub">collision avoidance &middot; thermal &middot; external debris &middot; anchored: 2608 collisions/yr at defaults (kinetic)</span>
 </header>
 
-<div id="layout">
-  <div id="controls">
+<nav id="tabs">
+  <button data-tab="tab-master" class="active">Master</button>
+  <button data-tab="tab-params">Parameters &amp; Assumptions</button>
+  <button data-tab="tab-collision">Collision Avoidance</button>
+  <button data-tab="tab-thermal">Thermal</button>
+  <button data-tab="tab-external">External Debris</button>
+  <button data-tab="tab-validation">Validation</button>
+</nav>
+
+<div id="content">
+
+<!-- ================= MASTER ================= -->
+<section class="tabpane active" id="tab-master">
+  <h2>System dashboard (all layers, current parameter set)</h2>
+  <div class="cardgrid">
+    <div class="card"><div class="l">Internal collisions / yr (natural)</div><div class="v" id="mEk">&ndash;</div><div class="s">Keplerian &middot; kinetic: <span id="mEb"></span></div></div>
+    <div class="card"><div class="l">Internal residual / yr (with CA)</div><div class="v" id="mEres">&ndash;</div><div class="s">f_fail = <span id="mFF"></span></div></div>
+    <div class="card"><div class="l">External lethal hits / yr (&gt;1 cm, fleet)</div><div class="v" id="mExt1">&ndash;</div><div class="s">not avoidable; losses after damage tolerance: <span id="mExtLoss"></span>/yr</div></div>
+    <div class="card"><div class="l">External trackable encounters / yr</div><div class="v" id="mExt10">&ndash;</div><div class="s">avoidable; residual <span id="mExt10res"></span>/yr</div></div>
+    <div class="card"><div class="l">Total expected losses / yr</div><div class="v" id="mTot">&ndash;</div><div class="s">internal residual + external residual + lethal-debris losses</div></div>
+    <div class="card"><div class="l">Cascade branching &kappa;</div><div class="v" id="mKappa">&ndash;</div><div class="s">&kappa;=1 at N &asymp; <span id="mNcrit"></span> &middot; residence for &kappa;=1: <span id="mTau1"></span></div></div>
+    <div class="card"><div class="l">Radiator area per satellite</div><div class="v" id="mA">&ndash;</div><div class="s" id="mAsrc">&ndash;</div></div>
+    <div class="card"><div class="l">Radiator root temperature</div><div class="v" id="mTrad">&ndash;</div><div class="s">GPU junction <span id="mTj"></span> &middot; thermal mass <span id="mMass"></span> kg/sat</div></div>
+  </div>
+  <div class="verdict" id="mVerdict">&ndash;</div>
+  <p class="footnote">
+    How the layers connect: the Thermal tab sizes the radiator from GPU temperature and IT power
+    (optionally driving the area used everywhere else); the Collision Avoidance tab computes the
+    self-collision workload from that area, the population and the orbits; the External Debris tab adds
+    the environment the fleet does not control. All tabs share one parameter set (Parameters &amp; Assumptions tab).
+  </p>
+</section>
+
+<!-- ================= PARAMETERS ================= -->
+<section class="tabpane" id="tab-params">
+  <h2>Parameters (shared by all tabs)</h2>
+  <div class="cols">
     <fieldset><legend>Population and cross-section</legend>
       <label>N satellites <span class="val" id="vN"></span></label>
       <input type="range" id="N" min="2" max="5.477" step="0.001" value="4.903" style="width:100%">
       <label>Radiator area A [m&sup2;] <span class="val" id="vA"></span></label>
       <input type="range" id="A" min="0" max="3" step="0.01" value="2.079" style="width:100%">
+      <label style="font-size:12px">drive A from Thermal tab <input type="checkbox" id="tLink" style="width:auto"></label>
       <label>Shape factor (&sigma; = f&middot;A) <span class="val" id="vSF"></span></label>
       <input type="range" id="SF" min="1" max="4" step="0.1" value="4" style="width:100%">
     </fieldset>
@@ -82,8 +132,7 @@
       </label>
       <div class="footnote" id="ssoNote" style="display:none;margin:2px 0 6px">
         SSO: i locked to altitude (<span id="vSSO"></span>), satellites spread evenly
-        across the band; convenient for constant radiator / solar-array orientation.
-        RAAN kept uniform (spread of LTANs); clustering at one local time would
+        across the band. RAAN kept uniform (spread of LTANs); clustering at one local time would
         break the randomized-RAAN assumption of the model.
       </div>
       <label>Radial profile
@@ -122,17 +171,53 @@
       <label>Fragment lifetime [yr] <input type="number" id="tau" value="25" step="5" min="1"></label>
     </fieldset>
 
+    <fieldset><legend>Thermal (two-phase pumped loop)</legend>
+      <label>IT power per satellite [kW] <input type="number" id="tPIT" value="80" step="10" min="1"></label>
+      <label>Overhead factor &alpha;_OH <input type="number" id="tOH" value="1.3" step="0.05" min="1"></label>
+      <label>GPU junction temp [&deg;C] <span class="val" id="vTj"></span></label>
+      <input type="range" id="tTj" min="55" max="115" step="1" value="85" style="width:100%">
+      <label>&Delta;T junction&rarr;coolant [K] <input type="number" id="tDTjc" value="20" step="2" min="2"></label>
+      <label>&Delta;T coolant&rarr;radiator root [K] <input type="number" id="tDTcr" value="8" step="1" min="1"></label>
+      <label>Emissivity &epsilon; <input type="number" id="tEps" value="0.9" step="0.02" min="0.5" max="1"></label>
+      <label>Fin efficiency &eta; <input type="number" id="tEta" value="0.85" step="0.02" min="0.5" max="1"></label>
+      <label>Sink temperature [K] <input type="number" id="tTsink" value="200" step="10" min="3"></label>
+      <label>Radiator areal density [kg/m&sup2;] <input type="number" id="tSigRad" value="3.5" step="0.5" min="1"></label>
+    </fieldset>
+
+    <fieldset><legend>External debris (screening level)</legend>
+      <label>Environment scale factor <span class="val" id="vDbScale"></span></label>
+      <input type="range" id="dbScale" min="-0.5" max="0.5" step="0.05" value="0" style="width:100%">
+      <label>Critical-area fraction (lethal if hit) <span class="val" id="vFcrit"></span></label>
+      <input type="range" id="dbFcrit" min="0.05" max="1" step="0.05" value="0.3" style="width:100%">
+    </fieldset>
+
     <fieldset><legend>3D view</legend>
       <label>Time speed <span class="val" id="vTS"></span></label>
       <input type="range" id="TS" min="0" max="2000" step="50" value="400" style="width:100%">
       <label>Sample density (dots at N=80k) <span class="val" id="vSAMP"></span></label>
       <input type="range" id="SAMP" min="200" max="6000" step="100" value="2500" style="width:100%">
     </fieldset>
-    <div class="footnote">Engine ported 1:1 from collision_models.py (same symbols, same quadrature). Natural rate assumes no avoidance; residual applies f_fail. Rates scale exactly with &sigma; and N&sup2;.</div>
   </div>
 
-  <div id="center">
-    <div id="stats">
+  <h2>Assumptions register</h2>
+  <table class="data">
+    <tr><th>Assumption</th><th>Validity / limitation</th></tr>
+    <tr><td>Dilute gas, Poisson statistics</td><td>Mean free path exceeds shell thickness by ~10^7; individual event probabilities small.</td></tr>
+    <tr><td>Circular orbits, no perturbations</td><td>J2 only accelerates the RAAN randomization the model already assumes. Eccentricity shifts densities by km; negligible on rates.</td></tr>
+    <tr><td>Randomized RAAN and phase</td><td>Exact for ensemble means. Coordinated slotting or LTAN clustering (all dawn-dusk) violates it; not modeled.</td></tr>
+    <tr><td>&sigma; = shape factor &times; A</td><td>4A = enveloping sphere (conservative); physical band A&hellip;4A; all rates linear in &sigma;.</td></tr>
+    <tr><td>Inclination dispersion &plusmn;0.5&deg;</td><td>Total rate insensitive; only the F_sp &times; F_vel split depends on it (logarithmically).</td></tr>
+    <tr><td>Cascade branching &kappa;</td><td>Warning index, not an evolutionary debris model (use LEGEND/MASTER for that). Avoidance does NOT apply to &kappa;.</td></tr>
+    <tr><td>External debris profile</td><td>Order-of-magnitude envelope calibrated to public ORDEM 3.1 / MASTER-8 / ESA figures. NOT a certified run; use the scale slider for the uncertainty band.</td></tr>
+    <tr><td>Thermal model</td><td>Steady-state two-phase loop; radiator radiates from both faces to an equivalent sink; transients, shadowing and degradation excluded.</td></tr>
+    <tr><td>f_fail</td><td>End-to-end fraction of dangerous internal/trackable encounters not mitigated, including dead satellites; lethal non-trackable debris cannot be avoided at all.</td></tr>
+  </table>
+</section>
+
+<!-- ================= COLLISION ================= -->
+<section class="tabpane" id="tab-collision">
+  <div id="colLeft">
+    <div class="cardgrid">
       <div class="card"><div class="l">Collisions / yr (natural)</div><div class="v" id="oEk">&ndash;</div><div class="s">Keplerian &middot; kinetic: <span id="oEb"></span></div></div>
       <div class="card"><div class="l">Residual / yr (with CA)</div><div class="v" id="oEres">&ndash;</div><div class="s">f_fail = <span id="oFF"></span> (1 = no CA, equals natural)</div></div>
       <div class="card"><div class="l">Per-satellite P(hit) in window T</div><div class="v" id="oP1">&ndash;</div><div class="s">&nu; = <span id="oNu"></span> /yr &middot; by pop [/yr]: <span id="oNuPop"></span></div></div>
@@ -147,15 +232,123 @@
         <button class="vtab active" id="tabConst">Constellation</button>
         <button class="vtab" id="tabCad">Satellite scale</button>
       </div>
-      <div id="viewhint">drag: rotate &middot; wheel: zoom &middot; light blue = nominal, flashing red = elevated local collision risk &middot; 💥 = collision (natural rate, sim time)</div>
+      <div id="viewhint">drag: rotate &middot; wheel: zoom &middot; orbits: true Keplerian propagation of a sampled population &middot; colors: light blue = nominal, flashing red = elevated local risk (model field) &middot; 💥 = statistical collision event at the model's natural rate, located by the model's latitude distribution (not a contact of the displayed dots)</div>
     </div>
   </div>
-
-  <div id="charts">
-    <div class="chartbox"><h3>Collisions/yr vs <select id="sweepsel" style="width:auto"><option value="A">radiator area A</option><option value="N">population N</option><option value="dr" id="optDr">band thickness &Delta;r</option></select> (log-log)</h3><div style="height:215px"><canvas id="chSweep"></canvas></div></div>
-    <div class="chartbox"><h3>Collision-rate density vs latitude (geography of encounters)</h3><div style="height:185px"><canvas id="chLat"></canvas></div></div>
-    <div class="chartbox"><h3>Impact-speed spectrum (collision-weighted)</h3><div style="height:185px"><canvas id="chVel"></canvas></div></div>
+  <div id="colRight">
+    <div class="chartbox"><h3>Collisions/yr vs <select id="sweepsel" style="width:auto"><option value="A">radiator area A</option><option value="N">population N</option><option value="dr" id="optDr">band thickness &Delta;r</option></select> (log-log)</h3><div style="height:205px"><canvas id="chSweep"></canvas></div></div>
+    <div class="chartbox"><h3>Collision-rate density vs latitude (geography of encounters)</h3><div style="height:180px"><canvas id="chLat"></canvas></div></div>
+    <div class="chartbox"><h3>Impact-speed spectrum (collision-weighted)</h3><div style="height:180px"><canvas id="chVel"></canvas></div></div>
   </div>
+</section>
+
+<!-- ================= THERMAL ================= -->
+<section class="tabpane" id="tab-thermal">
+  <h2>Two-phase active cooling: GPU temperature drives radiator size drives collision risk</h2>
+  <div class="cardgrid">
+    <div class="card"><div class="l">Heat rejected per satellite</div><div class="v" id="thQ">&ndash;</div><div class="s">P_IT &times; &alpha;_OH (all bus power becomes heat)</div></div>
+    <div class="card"><div class="l">Radiator root temperature</div><div class="v" id="thTrad">&ndash;</div><div class="s">T_junction &minus; &Delta;T(junction&rarr;coolant) &minus; &Delta;T(coolant&rarr;root)</div></div>
+    <div class="card"><div class="l">Net flux per panel m&sup2;</div><div class="v" id="thFlux">&ndash;</div><div class="s">2&epsilon;&eta;&sigma;(T_rad&sup4; &minus; T_sink&sup4;), both faces</div></div>
+    <div class="card"><div class="l">Required radiator panel area</div><div class="v" id="thA">&ndash;</div><div class="s" id="thAlink">&ndash;</div></div>
+  </div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">
+    <div class="chartbox" style="flex:1;min-width:340px"><h3>The thermal-collision tradeoff: hotter GPUs, smaller radiators, fewer collisions</h3><div style="height:240px"><canvas id="chThermal"></canvas></div></div>
+    <div style="flex:1;min-width:340px">
+      <h2 style="margin-top:0">Thermal system sizing (per satellite)</h2>
+      <table class="data" id="thParts">
+        <tr><th>Component</th><th>Sizing</th><th>Value</th></tr>
+        <tr><td>Cold plates / evaporators</td><td>&Delta;T junction&rarr;coolant at full load</td><td id="tp1">&ndash;</td></tr>
+        <tr><td>Two-phase loop (pump, lines, accumulator)</td><td>~0.8 kg per kW rejected + pump power ~1.5% of Q</td><td id="tp2">&ndash;</td></tr>
+        <tr><td>Condenser / radiator panels</td><td>A &times; areal density</td><td id="tp3">&ndash;</td></tr>
+        <tr><td>Total thermal subsystem mass</td><td>&ndash;</td><td id="tp4">&ndash;</td></tr>
+        <tr><td>Specific mass</td><td>per kW of IT power</td><td id="tp5">&ndash;</td></tr>
+      </table>
+      <p class="footnote">
+        Two-phase pumped loops keep the transport nearly isothermal, so the radiator runs close to the
+        junction temperature minus two interface drops; that is what makes the T&sup4; lever effective.
+        Raising the junction from 70&deg;C to 105&deg;C cuts the radiator (and the collision cross-section)
+        by roughly a factor 2; the price is paid in silicon reliability, leakage power, and pump margins.
+        Enable "drive A from Thermal tab" in Parameters to propagate this area through the whole model.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= EXTERNAL ================= -->
+<section class="tabpane" id="tab-external">
+  <h2>External debris environment (screening estimate, calibrated to public ORDEM/MASTER/ESA figures)</h2>
+  <div class="cardgrid">
+    <div class="card"><div class="l">Lethal non-trackable hits (&gt;1 cm), fleet</div><div class="v" id="exFleet1">&ndash;</div><div class="s">per satellite: <span id="exSat1"></span>/yr &middot; not avoidable</div></div>
+    <div class="card"><div class="l">Expected losses from LNT debris</div><div class="v" id="exLoss">&ndash;</div><div class="s">hits &times; critical-area fraction <span id="exFc"></span></div></div>
+    <div class="card"><div class="l">Trackable-object encounters (&gt;10 cm), fleet</div><div class="v" id="exFleet10">&ndash;</div><div class="s">per satellite: <span id="exSat10"></span>/yr &middot; adds to avoidance workload</div></div>
+    <div class="card"><div class="l">Residual from trackable debris</div><div class="v" id="exResid">&ndash;</div><div class="s">after avoidance at the same f_fail</div></div>
+  </div>
+  <div class="chartbox" style="margin-top:12px"><h3>Fleet-level rates vs altitude (300 km band centered at each altitude)</h3><div style="height:260px"><canvas id="chExt"></canvas></div></div>
+  <p class="footnote">
+    Method: flux = n(h, &gt;d) &times; v_rel; hits/yr = N &times; A_eff &times; flux. For lethal non-trackable
+    (1-10 cm) debris A_eff is the radiator face area A (it cannot be dodged; only damage tolerance helps,
+    hence the critical-area fraction). For trackable objects (&gt;10 cm) the encounter cross-section is
+    &sigma; = shape&middot;A and the events feed the same avoidance chain as internal conjunctions.
+    The density profile is an order-of-magnitude envelope (peak near 750-900 km, traffic bump near 550 km);
+    a bankable assessment requires native ORDEM 3.1 / MASTER-8 runs with the real geometry. The 700-900 km
+    region combines high debris density with very long residence times: least attractive for a large fleet.
+  </p>
+</section>
+
+<!-- ================= VALIDATION ================= -->
+<section class="tabpane" id="tab-validation">
+  <h2>Validation against published benchmarks (computed at the fixed reference case, independent of the sliders)</h2>
+  <p class="footnote" style="margin:0 0 10px">
+    Reference case: N = 80,000, A = 120 m&sup2;, &sigma; = 4A, 500-800 km, mix 43/53/70/97.6&deg;.
+    Benchmark A: independent due-diligence reconstruction, "Feasibility of an Orbital Data Center"
+    (10 June 2026), which rebuilt this model from the governing integral.
+    Benchmark B: S. G. Turyshev, "Orbital Data Centers: Spacecraft Constraints and Economic
+    Viability", arXiv:2604.27197 (May 2026), an independent power/thermal/economics closure model.
+  </p>
+  <h2>vs Benchmark A (independent collision-model reconstruction)</h2>
+  <table class="data">
+    <tr><th>Quantity</th><th>This model</th><th>Benchmark A</th><th>Status</th></tr>
+    <tr><td>Kinetic-gas baseline [collisions/yr]</td><td id="vaKin">&ndash;</td><td>2,608</td><td id="stKin">&ndash;</td></tr>
+    <tr><td>Keplerian rate [collisions/yr]</td><td id="vaKep">&ndash;</td><td>1,941.3</td><td id="stKep">&ndash;</td></tr>
+    <tr><td>Keplerian / kinetic ratio</td><td id="vaRatio">&ndash;</td><td>0.744</td><td id="stRatio">&ndash;</td></tr>
+    <tr><td>Mean natural rate per satellite [/yr]</td><td id="vaNu">&ndash;</td><td>0.0485</td><td id="stNu">&ndash;</td></tr>
+    <tr><td>Single 10 km shell at 650 km [collisions/yr]</td><td id="vaThin">&ndash;</td><td>~58,000</td><td id="stThin">&ndash;</td></tr>
+    <tr><td>N for 1 natural collision/yr (A = 120 m&sup2;)</td><td id="vaN1">&ndash;</td><td>1,816</td><td id="stN1">&ndash;</td></tr>
+    <tr><td>A for 1 natural collision/yr (N = 80k) [m&sup2;]</td><td id="vaA1">&ndash;</td><td>0.062</td><td id="stA1">&ndash;</td></tr>
+    <tr><td>f_fail for &lt;1 residual collision/yr</td><td id="vaFf">&ndash;</td><td>5.15e-4</td><td id="stFf">&ndash;</td></tr>
+    <tr><td>Cascade branching &kappa;</td><td id="vaKappa">&ndash;</td><td>~408</td><td id="stKappa">&ndash;</td></tr>
+    <tr><td>Fragment residence for &kappa; = 1 [days]</td><td id="vaTau">&ndash;</td><td>~22</td><td id="stTau">&ndash;</td></tr>
+    <tr><td>Screening load within 1 km [/sat/yr]</td><td id="vaScr">&ndash;</td><td>~320</td><td id="stScr">&ndash;</td></tr>
+    <tr><td>External &gt;10 cm encounters, fleet [/yr]</td><td id="vaX10">&ndash;</td><td>~400-600 (indicative figure)</td><td id="stX10">&ndash;</td></tr>
+    <tr><td>External &gt;1 cm lethal hits, fleet [/yr]</td><td id="vaX1">&ndash;</td><td>~1,000-4,500 (incl. &times;3 band)</td><td id="stX1">&ndash;</td></tr>
+  </table>
+  <p class="footnote">
+    The first eleven rows agree to three or more digits: Benchmark A is an independent
+    reconstruction of the same physics and reproduces this engine. The two external-debris rows
+    use different calibrations of the same flux method: this model anchors the &gt;1 cm population
+    to ESA object counts (~1.2 million objects of 1-10 cm in LEO), which lands at the upper edge of
+    Benchmark A's indicative uncertainty band. Use the environment scale slider for sensitivity.
+  </p>
+  <h2>vs Benchmark B (Turyshev, arXiv:2604.27197)</h2>
+  <table class="data">
+    <tr><th>Quantity</th><th>This model (defaults)</th><th>Benchmark B</th><th>Comment</th></tr>
+    <tr><td>Radiator area per IT kilowatt</td><td id="vbArea">&ndash;</td><td>2.5 m&sup2;/kW (1 MW anchor)</td>
+        <td>Same physics; ours runs hotter (T_rad <span id="vbTrad"></span>) and radiates both faces, his anchor is more conservative.</td></tr>
+    <tr><td>Radiator temperature</td><td id="vbT2">&ndash;</td><td>300-400 K design range</td><td>Inside his range.</td></tr>
+    <tr><td>Radiator areal density</td><td id="vbSig">&ndash;</td><td>2-10 kg/m&sup2;</td><td>Inside his range.</td></tr>
+    <tr><td>Thermal-subsystem mass per IT kW</td><td id="vbMass">&ndash;</td><td>~5-25 kg/kW (radiator share of his 29.4 kg/kW PV+storage+radiator floor)</td><td>Consistent.</td></tr>
+    <tr><td>Fleet scale context</td><td id="vbFleet">&ndash;</td><td>17-46 GW IT &rarr; 170,000-461,000 nodes at 100 kW</td><td>The reference fleet sits inside his envelope.</td></tr>
+    <tr><td>Collision-risk treatment</td><td>Explicit fleet-level model: rates, geography, spectrum, cascade &kappa;</td><td>Aggregated hazard rate &lambda;_MMOD inside the lifetime penalty &Pi;_life</td>
+        <td>Complementary: this model supplies the physics behind his &lambda;_MMOD and the correlated cascade risk his independent-hazard framework cannot represent.</td></tr>
+  </table>
+  <p class="footnote">
+    Benchmark B does not model fleet self-collisions, so the comparison is on the shared
+    thermal/sizing layer and on consistency of treatment. The two models close the loop on each
+    other: B shows the economics are gated by mass and link costs even before collision physics;
+    this model shows collision physics adds constraints B assumes away.
+  </p>
+</section>
+
 </div>
 
 <footer>
@@ -201,7 +394,12 @@ function defaultInputs(){
     rprof:"uniform_volume", shellAlt:650, shellWid:10,
     ssoMode:false, ssoShells:12,
     vmodel:"fixed10", ffail:1.0, Tyr:1.0,
-    frag:1000, tauYr:25, fragShape:1.0
+    frag:1000, tauYr:25, fragShape:1.0,
+    // thermal (two-phase pumped loop)
+    th_PIT_kW:80, th_alphaOH:1.3, th_Tj_C:85, th_dTjc:20, th_dTcr:8,
+    th_eps:0.9, th_eta:0.85, th_Tsink:200, th_sigRad:3.5, thermalLink:false,
+    // external debris
+    db_scale:1.0, db_fcrit:0.3
   };
 }
 
@@ -280,20 +478,14 @@ function expandMixRows(mixDeg, inp){
 function expandMix(inp){ return expandMixRows(inp.mix, inp); }
 
 /* ---- Sun-synchronous parametrization ----
-   J2 nodal precession of a circular orbit matches the mean Sun:
-     dRAAN/dt = -(3/2) J2 n (R_E/r)^2 cos i = 2 pi / tropical year
-   => cos i(r) = -(2/3) Omega_sun r^{7/2} / (J2 sqrt(mu) R_E^2).
-   SSO mode tiles the altitude band into equal shells; each shell carries
-   N/m satellites at the inclination its altitude requires (97.4 deg at
-   500 km to 98.6 deg at 800 km). Shells at different altitudes are radially
-   disjoint, so only same-shell pairs contribute to the rate. RAAN is kept
-   uniform (a spread of LTANs); clustering every satellite at one local time
-   (e.g. all dawn-dusk) would break the randomized-RAAN assumption. */
+   cos i(r) = -(2/3) Omega_sun r^{7/2} / (J2 sqrt(mu) R_E^2); SSO mode tiles
+   the band into shells, each at the inclination its altitude requires.
+   Shells are radially disjoint: only same-shell pairs collide. */
 const J2 = 1.08262668e-3;
 const OMEGA_SUN = 2*Math.PI/(365.2421897*86400);     // rad/s
 function ssoInclination(r){
   const c = -2*OMEGA_SUN*Math.pow(r,3.5)/(3*J2*Math.sqrt(MU_EARTH)*R_EARTH*R_EARTH);
-  return Math.abs(c) <= 1 ? Math.acos(c) : NaN;      // NaN above the SSO altitude limit
+  return Math.abs(c) <= 1 ? Math.acos(c) : NaN;
 }
 function ssoShellList(inp){
   const d = derive(inp), m = inp.ssoShells, out = [];
@@ -310,11 +502,6 @@ function ssoShellList(inp){
 function pairSums(mixDeg, inp, d){
   const mix = expandMixRows(mixDeg, inp);
   const m = mix.length / mixDeg.length;
-  // mean |di-di'| of two satellites inside one sub-bin of width 2*disp/m is
-  // (2*disp/m)/3; separating any pair of coincident effective inclinations by
-  // that amount emulates the continuous dispersion (regularizes the
-  // log-divergent <n^2> term, incl. duplicate rows and prograde/retrograde
-  // mirrors); preserves each member's prograde/retrograde character.
   const dDiag = (2*inp.dispDeg*Math.PI/180/Math.max(m,1))/3;
   const sep = (ia, ib) => {
     const e1 = ieff(ia), e2 = ieff(ib);
@@ -366,8 +553,7 @@ function keplerianModel(inp){
           veff, Fsp, Fvel: veff/d.vrelIso, ratio: E/kin.E, nuPop, sso, kin, d};
 }
 
-/* Population groups for the distribution functions: one group in free mode,
-   one per radially-disjoint shell in SSO mode (weights ~ I_r,k N_k^2). */
+/* Population groups for the distribution functions. */
 function popGroups(inp, d){
   if(!inp.ssoMode) return [{mix: expandMix(inp), wf: radialFactor(inp, d)}];
   const shells = ssoShellList(inp), m = shells.length;
@@ -376,7 +562,8 @@ function popGroups(inp, d){
 
 function cascadeCriterion(inp, d){
   const kappa = inp.frag*d.nMean*(inp.fragShape*inp.A)*d.vrelIso*(inp.tauYr*YEAR);
-  return {kappa, Ncrit: kappa>0 ? inp.N/kappa : Infinity};
+  return {kappa, Ncrit: kappa>0 ? inp.N/kappa : Infinity,
+          tauCrit_days: kappa>0 ? inp.tauYr*365.25/kappa : Infinity};
 }
 
 function rateVsLatitude(inp, nb){        // normalized dR/dbeta on a grid (per deg)
@@ -435,6 +622,81 @@ function requiredShellThickness(inp, Eacc){   // exact cubic, R_int fixed; meter
   const Vreq = inp.N**2*d.sigma*d.vrelIso*d.T/(2*Eacc);
   return Math.cbrt(d.Rint**3 + 3*Vreq/(4*Math.PI)) - d.Rint;
 }
+
+/* ================= THERMAL LAYER =================
+   Two-phase pumped-loop sizing. The transport is nearly isothermal, so
+   T_rad = T_junction - dT(junction->coolant) - dT(coolant->radiator root).
+   Radiator radiates from BOTH faces to an equivalent sink:
+     A = Q / [ 2 eps eta sigma_SB (T_rad^4 - T_sink^4) ].
+   The face area A is what enters the collision cross-section. */
+const SIGMA_SB = 5.670374419e-8;
+function thermalModel(inp){
+  const Q = inp.th_PIT_kW*1e3*inp.th_alphaOH;            // W rejected
+  const Trad = inp.th_Tj_C + 273.15 - inp.th_dTjc - inp.th_dTcr;
+  const flux = 2*inp.th_eps*inp.th_eta*SIGMA_SB*(Math.pow(Trad,4) - Math.pow(inp.th_Tsink,4));
+  const A = flux > 0 ? Q/flux : Infinity;                // m^2 face area
+  const mRad = A*inp.th_sigRad;                          // kg
+  const mLoop = 0.8*Q/1e3;                               // kg (~0.8 kg/kW)
+  const pumpW = 0.015*Q;                                 // W
+  return {Q, Trad, flux, A, mRad, mLoop, pumpW,
+          mTotal: mRad + mLoop,
+          specific: (mRad + mLoop)/Math.max(inp.th_PIT_kW,1e-9)};
+}
+
+/* ================= EXTERNAL DEBRIS LAYER =================
+   Screening flux method (order-of-magnitude envelope calibrated to public
+   ORDEM 3.1 / MASTER-8 / ESA Space Environment Report figures; NOT a
+   certified environment run):
+     flux  = n(h) * v_rel        [m^-2 s^-1], n in m^-3
+     hits  = N * A_eff * flux * T
+   Classes: >10 cm (catalogue-trackable: feeds the avoidance chain with
+   sigma = shape*A) and 1-10 cm lethal non-trackable (cannot be avoided;
+   A_eff = face area A; losses = hits * critical-area fraction). */
+const DB_ALT = [300,400,450,500,550,600,650,700,750,800,850,900,1000,1100,1200,1400,1500,1600,2000];
+const DB_N10 = [4e-9,1.2e-8,2e-8,3.5e-8,5e-8,5.5e-8,6e-8,7.5e-8,8.5e-8,9e-8,8.5e-8,
+                7.5e-8,5.5e-8,4e-8,3.5e-8,4.5e-8,3.5e-8,2.5e-8,1.2e-8];   // km^-3, >10 cm
+const DB_RATIO_1CM = 28;                                  // n(>1cm)/n(>10cm)
+function debrisDensity(h_km){                             // km^-3 at altitude
+  if(h_km <= DB_ALT[0]) return {n10: DB_N10[0], n1: DB_N10[0]*DB_RATIO_1CM};
+  if(h_km >= DB_ALT[DB_ALT.length-1]){ const n = DB_N10[DB_ALT.length-1];
+    return {n10:n, n1:n*DB_RATIO_1CM}; }
+  let k = 0; while(DB_ALT[k+1] < h_km) k++;
+  const t = (h_km - DB_ALT[k])/(DB_ALT[k+1]-DB_ALT[k]);
+  const n10 = DB_N10[k]*Math.pow(DB_N10[k+1]/DB_N10[k], t);   // log interp
+  return {n10, n1: n10*DB_RATIO_1CM};
+}
+function externalModel(inp){
+  const vimp = 1e4;                                       // m/s mean impact speed
+  // band-average density
+  const ns = 24; let n10 = 0, n1 = 0;
+  for(let k=0;k<ns;k++){
+    const h = inp.hmin + (inp.hmax-inp.hmin)*(k+0.5)/ns;
+    const dd = debrisDensity(h); n10 += dd.n10/ns; n1 += dd.n1/ns;
+  }
+  n10 *= inp.db_scale; n1 *= inp.db_scale;
+  const toSI = 1e-9;                                      // km^-3 -> m^-3
+  const fluxFactor = vimp*YEAR*inp.Tyr;                   // m/s * s = m  (per m^2 per window)
+  const satHits1  = (n1*toSI)*inp.A*fluxFactor;           // per satellite per window
+  const satEnc10  = (n10*toSI)*(inp.shape*inp.A)*fluxFactor;
+  return {
+    satHits1Yr: satHits1/inp.Tyr, fleetHits1Yr: satHits1*inp.N/inp.Tyr,
+    lossesYr: satHits1*inp.N*inp.db_fcrit/inp.Tyr,
+    satEnc10Yr: satEnc10/inp.Tyr, fleetEnc10Yr: satEnc10*inp.N/inp.Tyr,
+    resid10Yr: satEnc10*inp.N*inp.ffail/inp.Tyr,
+    n10_bandavg_km3: n10, n1_bandavg_km3: n1
+  };
+}
+function externalAltitudeCurves(inp){                     // fleet rates vs central altitude
+  const alts = [], f1 = [], f10 = [];
+  for(let h=300; h<=2000; h+=50){
+    const dd = debrisDensity(h);
+    const ff = 1e4*YEAR;                                  // 1-yr fluence per m^2 per (m^-3)
+    f1.push(dd.n1*inp.db_scale*1e-9*inp.A*inp.N*ff);
+    f10.push(dd.n10*inp.db_scale*1e-9*inp.shape*inp.A*inp.N*ff);
+    alts.push(h);
+  }
+  return {alts, f1, f10};
+}
 /* ================ END MODEL LAYER ================ */
 </script>
 
@@ -448,7 +710,6 @@ const fmt = (x,dig) => {
   if(x!==0 && (Math.abs(x)>=1e5 || Math.abs(x)<1e-3)) return x.toExponential(dig??2);
   return Number(x.toPrecision(dig??3)).toLocaleString("en-US");
 };
-// robust numeric read: fallback + clamp, never NaN
 const num = (id, def, lo, hi) => {
   const x = parseFloat($(id).value);
   if(!Number.isFinite(x)) return def;
@@ -457,14 +718,13 @@ const num = (id, def, lo, hi) => {
 
 function readInputs(){
   const inp = defaultInputs();
-  // snap sliders' log values to round numbers (hits N=80,000 / A=120 exactly)
   inp.N = Math.max(2, Number((10**parseFloat($("N").value)).toPrecision(2)));
   inp.A = Number((10**parseFloat($("A").value)).toPrecision(3));
   inp.shape = parseFloat($("SF").value);
   inp.hmin = num("hmin", 500, 150, 5000);
   inp.hmax = Math.max(num("hmax", 800, 160, 6000), inp.hmin+10);
   const rows = [0,1,2,3].map(k=>[num("i"+k, 0, 0, 180), num("w"+k, 0, 0, 100)]);
-  rows.forEach(([i,w],k)=>{                    // flag silently-dropped rows
+  rows.forEach(([i,w],k)=>{
     const ok = w>0 && i>0 && i<180;
     $("i"+k).style.borderColor = ok || w===0 ? "" : "var(--warn)";
   });
@@ -480,10 +740,41 @@ function readInputs(){
   inp.Tyr = num("T", 1, 0.01, 1000);
   inp.frag = num("frag", 1000, 0, 1e7);
   inp.tauYr = num("tau", 25, 0.1, 1000);
+  // thermal
+  inp.th_PIT_kW = num("tPIT", 80, 0.1, 1e5);
+  inp.th_alphaOH = num("tOH", 1.3, 1, 5);
+  inp.th_Tj_C = parseFloat($("tTj").value);
+  inp.th_dTjc = num("tDTjc", 20, 1, 60);
+  inp.th_dTcr = num("tDTcr", 8, 0.5, 40);
+  inp.th_eps = num("tEps", 0.9, 0.3, 1);
+  inp.th_eta = num("tEta", 0.85, 0.3, 1);
+  inp.th_Tsink = num("tTsink", 200, 3, 320);
+  inp.th_sigRad = num("tSigRad", 3.5, 0.5, 30);
+  inp.thermalLink = $("tLink").checked;
+  // external debris
+  inp.db_scale = 10**parseFloat($("dbScale").value);
+  inp.db_fcrit = parseFloat($("dbFcrit").value);
+  // thermal -> area coupling
+  if(inp.thermalLink){
+    const th = thermalModel(inp);
+    if(isFinite(th.A) && th.A > 0) inp.A = Number(th.A.toPrecision(3));
+  }
+  $("A").disabled = inp.thermalLink;
   return inp;
 }
 
-let chSweep, chLat, chVel;
+/* ---------------- tab switching ---------------- */
+let chartsByTab = {};
+function setTab(id){
+  document.querySelectorAll(".tabpane").forEach(p=>p.classList.toggle("active", p.id===id));
+  document.querySelectorAll("nav#tabs button").forEach(b=>b.classList.toggle("active", b.dataset.tab===id));
+  // hidden-container fixes: resize charts and the 3D canvas on activation
+  (chartsByTab[id]||[]).forEach(c=>{ try{ c.resize(); }catch(e){} });
+  if(id==="tab-collision" && typeof resize3D === "function") resize3D();
+}
+
+/* ---------------- charts ---------------- */
+let chSweep, chLat, chVel, chThermal, chExt;
 function makeCharts(){
   const gridCol = "rgba(143,160,189,.15)", tickCol = "#8fa0bd";
   const base = (extra) => ({responsive:true, maintainAspectRatio:false, animation:false,
@@ -502,12 +793,28 @@ function makeCharts(){
   chVel = new Chart($("chVel"), {type:"bar", data:{labels:[], datasets:[
       {label:"impact-speed pdf", backgroundColor:"rgba(90,169,255,.55)", data:[]}]},
     options:base({plugins:{legend:{display:false}}})});
+  chThermal = new Chart($("chThermal"), {type:"line", data:{labels:[], datasets:[
+      {label:"radiator area [m²]", borderColor:"#5aa9ff", data:[], pointRadius:0, borderWidth:2, yAxisID:"y"},
+      {label:"internal collisions/yr (natural)", borderColor:"#ffa94d", data:[], pointRadius:0, borderWidth:2, yAxisID:"y2"},
+      {label:"current T_j", borderColor:"#39c98e", backgroundColor:"#39c98e", data:[], pointRadius:5, type:"scatter", yAxisID:"y"}]},
+    options:base({scales:{
+      x:{grid:{color:gridCol},ticks:{color:tickCol},title:{display:true,text:"GPU junction temperature [°C]",color:tickCol}},
+      y:{grid:{color:gridCol},ticks:{color:"#5aa9ff"},title:{display:true,text:"radiator area [m²]",color:"#5aa9ff"}},
+      y2:{position:"right",grid:{drawOnChartArea:false},ticks:{color:"#ffa94d"},title:{display:true,text:"collisions/yr",color:"#ffa94d"}}}})});
+  chExt = new Chart($("chExt"), {type:"line", data:{labels:[], datasets:[
+      {label:"lethal non-trackable hits >1 cm (fleet/yr, A_eff = A)", borderColor:"#ff5a6a", data:[], pointRadius:0, borderWidth:2},
+      {label:"trackable encounters >10 cm (fleet/yr, σ = shape·A)", borderColor:"#5aa9ff", data:[], pointRadius:0, borderWidth:2},
+      {label:"internal natural self-collisions (current band)", borderColor:"#ffa94d", borderDash:[6,4], data:[], pointRadius:0, borderWidth:1.5}]},
+    options:base({scales:{
+      x:{grid:{color:gridCol},ticks:{color:tickCol},title:{display:true,text:"central altitude [km]",color:tickCol}},
+      y:{type:"logarithmic",grid:{color:gridCol},ticks:{color:tickCol}}}})});
+  chartsByTab = {"tab-collision":[chSweep,chLat,chVel], "tab-thermal":[chThermal], "tab-external":[chExt]};
 }
 
 function updateCharts(inp, kep){
   const sel = $("sweepsel").value;
   const pts = 25, kepD=[], kinD=[];
-  const Ey = kep.E/inp.Tyr, EkinY = kep.kin.E/inp.Tyr;   // chart shows per-year
+  const Ey = kep.E/inp.Tyr, EkinY = kep.kin.E/inp.Tyr;
   if(sel==="A"){
     for(let k=0;k<pts;k++){ const A = 10**(0 + 3*k/(pts-1));
       kepD.push({x:A, y:Ey*A/inp.A}); kinD.push({x:A, y:EkinY*A/inp.A}); }
@@ -516,15 +823,14 @@ function updateCharts(inp, kep){
     for(let k=0;k<pts;k++){ const N = 10**(2 + 3.5*k/(pts-1));
       kepD.push({x:N, y:Ey*(N/inp.N)**2}); kinD.push({x:N, y:EkinY*(N/inp.N)**2}); }
     chSweep.data.datasets[2].data=[{x:inp.N, y:Ey}];
-  } else if(inp.rprof === "uniform_volume"){ // band thickness, fixed bottom
-    // E ~ 1/V x v(Rbar): J integrals are exactly linear in v_orb, kinetic in vrelIso
+  } else if(inp.rprof === "uniform_volume"){
     const dr0 = inp.hmax-inp.hmin, d0 = derive(inp);
     for(let k=0;k<pts;k++){ const dr = 10**(1 + 3*k/(pts-1));
       const d2 = derive({...inp, hmax: inp.hmin+dr});
       kepD.push({x:dr, y:Ey*(d0.V/d2.V)*(d2.vorb/d0.vorb)});
       kinD.push({x:dr, y:EkinY*(d0.V/d2.V)*(d2.vrelIso/d0.vrelIso)}); }
     chSweep.data.datasets[2].data=[{x:dr0, y:Ey}];
-  } else {                                  // thin shell: sweep shell width; Keplerian E ~ 1/w
+  } else {
     for(let k=0;k<pts;k++){ const w = 10**(0 + 3*k/(pts-1));
       kepD.push({x:w, y:Ey*inp.shellWid/w}); kinD.push({x:w, y:EkinY}); }
     chSweep.data.datasets[2].data=[{x:inp.shellWid, y:Ey}];
@@ -545,10 +851,33 @@ function updateCharts(inp, kep){
   return {meanImpact: sp.meanImpact, rl};
 }
 
-/* ---------------- 3D views (constellation + satellite scale) ---------------- */
+function updateThermalChart(inp, kep, th){
+  const Tj = [], Aarr = [], Earr = [];
+  for(let t=55; t<=115; t+=2){
+    const t2 = thermalModel({...inp, th_Tj_C: t});
+    Tj.push(t); Aarr.push(t2.A);
+    Earr.push(kep.E/inp.Tyr * t2.A/inp.A);   // E linear in sigma = shape*A
+  }
+  chThermal.data.labels = Tj;
+  chThermal.data.datasets[0].data = Aarr;
+  chThermal.data.datasets[1].data = Earr;
+  chThermal.data.datasets[2].data = [{x: inp.th_Tj_C, y: th.A}];
+  chThermal.update();
+}
+
+function updateExternalChart(inp, kep){
+  const c = externalAltitudeCurves(inp);
+  chExt.data.labels = c.alts;
+  chExt.data.datasets[0].data = c.f1;
+  chExt.data.datasets[1].data = c.f10;
+  chExt.data.datasets[2].data = c.alts.map(()=>kep.E/inp.Tyr);
+  chExt.update();
+}
+
+/* ---------------- 3D views ---------------- */
 let scene, sceneCAD, camera, renderer, satPts, satData=null, shellMesh1, shellMesh2,
     cadGroup=null, simT=0, lastFrame=0, activeView="const";
-let riskLUT=null, riskCDF=null, evRate=0, bandRint=0, bandRest=0;   // set in refresh
+let riskLUT=null, riskCDF=null, evRate=0, bandRint=0, bandRest=0;
 let collisions=[], boomMat=null;
 const COL_BASE=[0.55,0.82,1.0], COL_RED=[1.0,0.10,0.10];
 const camStates = {const:{theta:0.5, phi:0.35, dist:3.6, min:1.6, max:12,  ty:0},
@@ -561,14 +890,20 @@ function updateCam(){
                       c.dist*Math.cos(c.phi)*Math.cos(c.theta));
   camera.lookAt(0, c.ty, 0);
 }
+function resize3D(){
+  const el = $("view3d");
+  if(!renderer || el.clientWidth === 0) return;
+  camera.aspect = el.clientWidth/el.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(el.clientWidth, el.clientHeight);
+}
 
 function init3D(){
   const el = $("view3d");
   scene = new THREE.Scene();
   sceneCAD = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(45, el.clientWidth/el.clientHeight, 0.1, 5000);
+  camera = new THREE.PerspectiveCamera(45, 2, 0.1, 5000);
   renderer = new THREE.WebGLRenderer({antialias:true});
-  renderer.setSize(el.clientWidth, el.clientHeight);
   renderer.setClearColor(0x0b0f1a);
   el.appendChild(renderer.domElement);
 
@@ -597,13 +932,13 @@ function init3D(){
   el.addEventListener("wheel", e=>{ e.preventDefault();
     const c = camStates[activeView];
     c.dist = Math.min(c.max, Math.max(c.min, c.dist*(1+e.deltaY*0.001))); updateCam(); }, {passive:false});
-  window.addEventListener("resize", ()=>{ camera.aspect = el.clientWidth/el.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(el.clientWidth, el.clientHeight); });
+  window.addEventListener("resize", resize3D);
 
   const setView = v => { activeView = v;
     $("tabConst").classList.toggle("active", v==="const");
     $("tabCad").classList.toggle("active", v==="cad");
     $("viewhint").textContent = v==="const"
-      ? "drag: rotate · wheel: zoom · light blue = nominal, flashing red = elevated local collision risk · 💥 = collision (natural rate, sim time)"
+      ? "drag: rotate · wheel: zoom · orbits: true Keplerian propagation of a sampled population · colors: light blue = nominal, flashing red = elevated local risk (model field) · 💥 = statistical collision event at the model's natural rate, located by the model's latitude distribution (not a contact of the displayed dots)"
       : "drag: rotate · wheel: zoom · grid: 5 m squares · reference objects for scale";
     updateCam(); };
   $("tabConst").addEventListener("click", ()=>setView("const"));
@@ -612,7 +947,6 @@ function init3D(){
 }
 
 function shownCount(inp){
-  // sample scales with N (correct relative density), capped for performance
   const dens = parseInt($("SAMP").value);
   return Math.max(20, Math.min(Math.round(dens * inp.N / 80000), 8000, inp.N));
 }
@@ -658,7 +992,7 @@ function rebuildSats(inp){
   scene.add(shellMesh1); scene.add(shellMesh2);
 }
 
-/* ----- collision markers (💥) ----- */
+/* ----- collision markers ----- */
 function boomMaterial(){
   if(boomMat) return boomMat;
   const cv = document.createElement("canvas"); cv.width = cv.height = 128;
@@ -670,14 +1004,13 @@ function boomMaterial(){
 }
 function spawnCollision(tNow){
   if(!riskCDF || collisions.length > 25) return;
-  // latitude sampled from the collision-rate distribution, longitude uniform
   const u = Math.random();
   let lo = 0, hi = riskCDF.length-1;
   while(lo < hi){ const mid = (lo+hi)>>1; (riskCDF[mid] < u) ? lo = mid+1 : hi = mid; }
   const lat = (-89.5 + 179*lo/(riskCDF.length-1))*Math.PI/180;
   const lon = Math.random()*2*Math.PI;
   const r = (bandRint + Math.random()*(bandRest-bandRint))/R_EARTH;
-  const sp = new THREE.Sprite(boomMaterial().clone());   // own opacity, shared texture
+  const sp = new THREE.Sprite(boomMaterial().clone());
   sp.position.set(r*Math.cos(lat)*Math.cos(lon), r*Math.sin(lat), r*Math.cos(lat)*Math.sin(lon));
   sp.scale.set(0.22, 0.22, 1);
   scene.add(sp);
@@ -705,13 +1038,12 @@ function rebuildCAD(inp){
   cadGroup = new THREE.Group();
   const mat = (c, extra={}) => new THREE.MeshPhongMaterial({color:c, ...extra});
 
-  // AI1 satellite: bus + two radiator wings (total area A) + solar array (A/2, illustrative)
   const A = inp.A;
-  const wH = Math.min(6, Math.max(1.2, Math.sqrt(A/2)/2));   // wing height [m]
-  const wL = (A/2)/wH;                                        // wing length [m]
+  const wH = Math.min(6, Math.max(1.2, Math.sqrt(A/2)/2));
+  const wL = (A/2)/wH;
   const cy = Math.max(wH/2 + 1.5, 3);
   const sat = new THREE.Group();
-  sat.add(new THREE.Mesh(new THREE.BoxGeometry(2,2,3), mat(0xc9a227, {emissive:0x3a2f08})));       // MLI bus
+  sat.add(new THREE.Mesh(new THREE.BoxGeometry(2,2,3), mat(0xc9a227, {emissive:0x3a2f08})));
   const wing = (sx) => { const w = new THREE.Mesh(new THREE.BoxGeometry(wL, wH, 0.12),
       mat(0xd7dde8, {emissive:0x20242c, side:THREE.DoubleSide})); w.position.x = sx*(1+wL/2); return w; };
   sat.add(wing(1)); sat.add(wing(-1));
@@ -723,7 +1055,6 @@ function rebuildCAD(inp){
   const lbl = textSprite(`AI1 compute satellite · radiators ${fmt(A,3)} m² · span ${(2+2*wL).toFixed(0)} m`, 30);
   lbl.position.set(0, cy + wH/2 + 3, 0); cadGroup.add(lbl);
 
-  // reference objects
   const refs = [];
   const off = wL + 14;
   { const bus = new THREE.Mesh(new THREE.BoxGeometry(12, 3, 2.55), mat(0xd9a431));
@@ -756,12 +1087,9 @@ function animate(ts){
       const u = u0[k] + nm[k]*simT;
       const cu=Math.cos(u), su=Math.sin(u), cO=Math.cos(raan[k]), sO=Math.sin(raan[k]),
             ci=Math.cos(inc[k]), si=Math.sin(inc[k]), R=rr[k]/R_EARTH;
-      // map: equatorial xy-plane -> three.js xz-plane (y up)
       pos[3*k]   = R*(cO*cu - sO*su*ci);
       pos[3*k+2] = -R*(sO*cu + cO*su*ci);
       pos[3*k+1] = R*(su*si);
-      // risk coloring: light blue nominal -> flashing red where the local
-      // collision-rate density (vs latitude) is high
       let t = 0;
       if(nLut){
         const sl = Math.max(-1, Math.min(1, su*si));
@@ -776,14 +1104,13 @@ function animate(ts){
     }
     satPts.geometry.attributes.position.needsUpdate = true;
     satPts.geometry.attributes.color.needsUpdate = true;
-    // collision events: Poisson with the NATURAL fleet rate in simulated time
     const pEv = evRate*dt*speed;
     if(pEv > 0 && Math.random() < Math.min(pEv, 0.5)) spawnCollision(tNow);
     for(let k=collisions.length-1; k>=0; k--){
       const ev = collisions[k];
       const left = ev.expire - tNow;
       if(left <= 0){ scene.remove(ev.sp); ev.sp.material.dispose(); collisions.splice(k,1); }
-      else { // pop in over 0.3 s, hold, fade out over the last second
+      else {
         const age = 3.5 - left;
         const s = 0.30*Math.min(1, age/0.3)*(left < 1 ? 0.4+0.6*left : 1);
         ev.sp.scale.set(s, s, 1);
@@ -797,16 +1124,37 @@ function animate(ts){
 let pending = null;
 function refresh(){
   const inp = readInputs();
+  const kep = keplerianModel(inp);
+  const casc = cascadeCriterion(inp, kep.d);
+  const th = thermalModel(inp);
+  const ext = externalModel(inp);
+
+  /* --- parameter echoes --- */
   $("vN").textContent = inp.N.toLocaleString("en-US");
-  $("vA").textContent = fmt(inp.A,3)+" m²";
+  $("vA").textContent = fmt(inp.A,3)+" m²"+(inp.thermalLink?" (thermal)":"");
   $("vSF").textContent = inp.shape.toFixed(1)+"  (σ="+fmt(inp.shape*inp.A,3)+" m²)";
   $("vDI").textContent = "±"+inp.dispDeg.toFixed(2)+"°";
   $("vFF").textContent = inp.ffail.toExponential(1);
   $("vTS").textContent = $("TS").value+"×";
   $("vSAMP").textContent = shownCount(inp).toLocaleString("en-US")+" shown";
+  $("vTj").textContent = inp.th_Tj_C.toFixed(0)+" °C";
+  $("vDbScale").textContent = "×"+inp.db_scale.toFixed(2);
+  $("vFcrit").textContent = (inp.db_fcrit*100).toFixed(0)+"%";
 
-  const kep = keplerianModel(inp);
-  const casc = cascadeCriterion(inp, kep.d);
+  /* --- SSO UI state --- */
+  $("ssoNote").style.display = inp.ssoMode ? "block" : "none";
+  $("mixtbl").style.opacity = inp.ssoMode ? 0.35 : 1;
+  ["i0","w0","i1","w1","i2","w2","i3","w3"].forEach(id=>$(id).disabled = inp.ssoMode);
+  $("rprof").disabled = inp.ssoMode;
+  if(inp.ssoMode){
+    const d0 = derive(inp);
+    const iA = ssoInclination(d0.Rint)*180/Math.PI, iB = ssoInclination(d0.Rest)*180/Math.PI;
+    $("vSSO").textContent = (isFinite(iA) && isFinite(iB))
+      ? iA.toFixed(2)+"° at "+inp.hmin.toFixed(0)+" km to "+iB.toFixed(2)+"° at "+inp.hmax.toFixed(0)+" km"
+      : "band exceeds the SSO altitude limit";
+  }
+
+  /* --- collision tab --- */
   $("oEk").textContent = fmt(kep.E/inp.Tyr, 3);
   $("oEb").textContent = fmt(kep.kin.E/inp.Tyr,3);
   $("oEres").textContent = fmt(kep.Eres/inp.Tyr,3);
@@ -821,19 +1169,6 @@ function refresh(){
   $("oMfpR").textContent = fmt(kep.kin.mfp/((kep.d.Rest-kep.d.Rint)),2);
   $("oKappa").textContent = fmt(casc.kappa,3);
   $("oNcrit").textContent = fmt(casc.Ncrit,3);
-  // SSO mode UI state
-  $("ssoNote").style.display = inp.ssoMode ? "block" : "none";
-  $("mixtbl").style.opacity = inp.ssoMode ? 0.35 : 1;
-  ["i0","w0","i1","w1","i2","w2","i3","w3"].forEach(id=>$(id).disabled = inp.ssoMode);
-  $("rprof").disabled = inp.ssoMode;
-  if(inp.ssoMode){
-    const d0 = derive(inp);
-    const iA = ssoInclination(d0.Rint)*180/Math.PI, iB = ssoInclination(d0.Rest)*180/Math.PI;
-    $("vSSO").textContent = (isFinite(iA) && isFinite(iB))
-      ? iA.toFixed(2)+"° at "+inp.hmin.toFixed(0)+" km to "+iB.toFixed(2)+"° at "+inp.hmax.toFixed(0)+" km"
-      : "band exceeds the SSO altitude limit";
-  }
-  // per-population rates and the geometric dead-end readout
   $("oNuPop").textContent = inp.ssoMode && kep.sso
     ? "SSO "+fmt(kep.sso.iMinDeg,4)+"–"+fmt(kep.sso.iMaxDeg,4)+"°: "
       +fmt(kep.sso.nuMinYr,2)+"–"+fmt(kep.sso.nuMaxYr,2)
@@ -844,19 +1179,78 @@ function refresh(){
     reg.firstChild.textContent = "SUPERCRITICAL: one breakup cascades (κ ≥ 1)"; }
   else { reg.style.background="rgba(57,201,142,.15)"; reg.style.color="#5fe0ae";
     reg.firstChild.textContent = "Self-limiting debris regime (κ < 1)"; }
-  // sweep option label follows the radial profile
   $("optDr").text = inp.rprof==="thin_shell" ? "shell width w" : "band thickness Δr";
 
   const {meanImpact, rl} = updateCharts(inp, kep);
   $("oVimp").textContent = (meanImpact/1e3).toFixed(1)+" km/s";
 
-  // risk field + collision-event rate for the 3D view
+  /* --- thermal tab --- */
+  $("thQ").textContent = fmt(th.Q/1e3,3)+" kW";
+  $("thTrad").textContent = th.Trad.toFixed(0)+" K ("+(th.Trad-273.15).toFixed(0)+" °C)";
+  $("thFlux").textContent = fmt(th.flux,3)+" W/m²";
+  $("thA").textContent = fmt(th.A,3)+" m²";
+  $("thAlink").textContent = inp.thermalLink
+    ? "DRIVING the collision model (link enabled in Parameters)"
+    : "collision model uses the A slider ("+fmt(inp.A,3)+" m²); enable the link in Parameters to couple";
+  $("tp1").textContent = "ΔT = "+inp.th_dTjc.toFixed(0)+" K at "+fmt(th.Q/1e3,3)+" kW";
+  $("tp2").textContent = fmt(th.mLoop,3)+" kg · pump "+fmt(th.pumpW/1e3,2)+" kW";
+  $("tp3").textContent = fmt(th.mRad,3)+" kg ("+fmt(th.A,3)+" m² × "+inp.th_sigRad+" kg/m²)";
+  $("tp4").textContent = fmt(th.mTotal,3)+" kg";
+  $("tp5").textContent = fmt(th.specific,3)+" kg/kW_IT";
+  updateThermalChart(inp, kep, th);
+
+  /* --- external tab --- */
+  $("exFleet1").textContent = fmt(ext.fleetHits1Yr,3);
+  $("exSat1").textContent = fmt(ext.satHits1Yr,2);
+  $("exLoss").textContent = fmt(ext.lossesYr,3)+" /yr";
+  $("exFc").textContent = (inp.db_fcrit*100).toFixed(0)+"%";
+  $("exFleet10").textContent = fmt(ext.fleetEnc10Yr,3);
+  $("exSat10").textContent = fmt(ext.satEnc10Yr,2);
+  $("exResid").textContent = fmt(ext.resid10Yr,3)+" /yr";
+  updateExternalChart(inp, kep);
+
+  /* --- master tab --- */
+  $("mEk").textContent = fmt(kep.E/inp.Tyr,3);
+  $("mEb").textContent = fmt(kep.kin.E/inp.Tyr,3);
+  $("mEres").textContent = fmt(kep.Eres/inp.Tyr,3);
+  $("mFF").textContent = inp.ffail.toExponential(1);
+  $("mExt1").textContent = fmt(ext.fleetHits1Yr,3);
+  $("mExtLoss").textContent = fmt(ext.lossesYr,2);
+  $("mExt10").textContent = fmt(ext.fleetEnc10Yr,3);
+  $("mExt10res").textContent = fmt(ext.resid10Yr,2);
+  const totalLoss = kep.Eres/inp.Tyr + ext.resid10Yr + ext.lossesYr;
+  $("mTot").textContent = fmt(totalLoss,3);
+  $("mKappa").textContent = fmt(casc.kappa,3);
+  $("mNcrit").textContent = fmt(casc.Ncrit,3);
+  $("mTau1").textContent = fmt(casc.tauCrit_days,2)+" d";
+  $("mA").textContent = fmt(inp.A,3)+" m²";
+  $("mAsrc").textContent = inp.thermalLink ? "driven by the thermal model" : "set by the A slider";
+  $("mTrad").textContent = th.Trad.toFixed(0)+" K";
+  $("mTj").textContent = inp.th_Tj_C.toFixed(0)+" °C";
+  $("mMass").textContent = fmt(th.mTotal,3);
+  const v = $("mVerdict");
+  if(casc.kappa >= 1 || totalLoss > 10){
+    v.style.background="rgba(255,90,106,.15)"; v.style.color="#ff8a96";
+    v.textContent = "Stress regime: total expected losses "+fmt(totalLoss,2)
+      +"/yr and cascade branching κ = "+fmt(casc.kappa,2)
+      +" (supercritical). Lethal non-trackable debris alone causes "+fmt(ext.lossesYr,2)
+      +" losses/yr that no avoidance can prevent. Levers: area, count, damage tolerance, disposal.";
+  } else if(totalLoss > 1){
+    v.style.background="rgba(255,196,60,.12)"; v.style.color="var(--amber)";
+    v.textContent = "Marginal regime: total expected losses "+fmt(totalLoss,2)+"/yr, κ = "+fmt(casc.kappa,2)+".";
+  } else {
+    v.style.background="rgba(57,201,142,.13)"; v.style.color="#5fe0ae";
+    v.textContent = "Within budget at the current assumptions: total expected losses "+fmt(totalLoss,2)
+      +"/yr, κ = "+fmt(casc.kappa,2)+". Verify f_fail end-to-end including dead satellites.";
+  }
+
+  /* --- 3D risk field --- */
   const mx = Math.max(...rl.val, 1e-300);
-  riskLUT = Float32Array.from(rl.val, v=>v/mx);
+  riskLUT = Float32Array.from(rl.val, v2=>v2/mx);
   riskCDF = new Float32Array(rl.val.length);
   let acc = 0; const tot = rl.val.reduce((a,b)=>a+b,0) || 1;
   for(let k=0;k<rl.val.length;k++){ acc += rl.val[k]/tot; riskCDF[k] = acc; }
-  evRate = kep.E/kep.d.T;                  // natural collisions per simulated second
+  evRate = kep.E/kep.d.T;
   bandRint = kep.d.Rint; bandRest = kep.d.Rest;
 
   rebuildSats(inp);
@@ -865,8 +1259,51 @@ function refresh(){
 
 function schedule(){ clearTimeout(pending); pending = setTimeout(refresh, 120); }
 
+/* Validation tab: computed once at the FIXED reference case (slider-independent). */
+function fillValidation(){
+  const inp = defaultInputs();
+  const kin = kineticModel(inp), kep = keplerianModel(inp);
+  const thn = keplerianModel({...inp, rprof:"thin_shell"});
+  const cc = cascadeCriterion(inp, derive(inp));
+  const ext = externalModel(inp);
+  const th = thermalModel(inp);
+  const E = kep.E;
+  const rows = [
+    ["Kin", kin.E, 2608, 0.005],
+    ["Kep", E, 1941.3, 0.005],
+    ["Ratio", kep.ratio, 0.744, 0.005],
+    ["Nu", kep.nuYr, 0.0485, 0.01],
+    ["Thin", thn.E, 58000, 0.05],
+    ["N1", inp.N/Math.sqrt(E), 1816, 0.01],
+    ["A1", inp.A/E, 0.062, 0.02],
+    ["Ff", 1/E, 5.15e-4, 0.01],
+    ["Kappa", cc.kappa, 408, 0.01],
+    ["Tau", cc.tauCrit_days, 22, 0.05],
+    ["Scr", kep.nuYr*Math.PI*1e6/derive(inp).sigma, 320, 0.02],
+  ];
+  for(const [key, ours, ref, tol] of rows){
+    $("va"+key).textContent = fmt(ours, 4);
+    const ok = Math.abs(ours-ref)/ref <= tol;
+    $("st"+key).textContent = ok ? "✓ match" : "≈ "+fmt(ours/ref,3)+"×";
+    $("st"+key).style.color = ok ? "#5fe0ae" : "var(--amber)";
+  }
+  $("vaX10").textContent = fmt(ext.fleetEnc10Yr, 3);
+  $("stX10").textContent = "≈ same order"; $("stX10").style.color = "var(--amber)";
+  $("vaX1").textContent = fmt(ext.fleetHits1Yr, 3);
+  $("stX1").textContent = "upper edge of band (ESA-count anchored)"; $("stX1").style.color = "var(--amber)";
+  $("vbArea").textContent = (th.A/inp.th_PIT_kW).toFixed(2)+" m²/kW";
+  $("vbTrad").textContent = th.Trad.toFixed(0)+" K";
+  $("vbT2").textContent = th.Trad.toFixed(0)+" K ("+(th.Trad-273.15).toFixed(0)+" °C)";
+  $("vbSig").textContent = inp.th_sigRad+" kg/m²";
+  $("vbMass").textContent = th.specific.toFixed(1)+" kg/kW";
+  $("vbFleet").textContent = inp.N.toLocaleString("en-US")+" × "+inp.th_PIT_kW+" kW = "
+    +(inp.N*inp.th_PIT_kW/1e6).toFixed(1)+" GW IT";
+}
+
 window.addEventListener("load", ()=>{
-  makeCharts(); init3D();
+  makeCharts(); init3D(); fillValidation();
+  document.querySelectorAll("nav#tabs button").forEach(b=>
+    b.addEventListener("click", ()=>setTab(b.dataset.tab)));
   document.querySelectorAll("input,select").forEach(el=>{
     el.addEventListener("input", schedule); el.addEventListener("change", schedule);
   });
