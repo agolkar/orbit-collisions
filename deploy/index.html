@@ -90,10 +90,11 @@
 
 <nav id="tabs">
   <button data-tab="tab-master" class="active">Master</button>
-  <button data-tab="tab-collision">Collision Avoidance</button>
-  <button data-tab="tab-thermal">Thermal</button>
+  <button data-tab="tab-assumptions">Parameters &amp; Assumptions</button>
   <button data-tab="tab-power">Power</button>
+  <button data-tab="tab-thermal">Thermal</button>
   <button data-tab="tab-adcs">ADCS</button>
+  <button data-tab="tab-collision">Collision Avoidance</button>
   <button data-tab="tab-external">External Debris</button>
   <button data-tab="tab-validation">Validation</button>
 </nav>
@@ -426,6 +427,8 @@
     Benchmark B: S. G. Turyshev, "Orbital Data Centers: Spacecraft Constraints and Economic
     Viability", arXiv:2604.27197 (May 2026), an independent power/thermal/economics closure model.
   </p>
+  <div class="chartbox"><h3>This model vs benchmarks: ratio of our value to the published value (1.0 = perfect agreement)</h3>
+    <div style="height:250px"><canvas id="chVal"></canvas></div></div>
   <h2>vs Benchmark A (independent collision-model reconstruction)</h2>
   <table class="data">
     <tr><th>Quantity</th><th>This model</th><th>Benchmark A</th><th>Status</th></tr>
@@ -469,8 +472,21 @@
     other: B shows the economics are gated by mass and link costs even before collision physics;
     this model shows collision physics adds constraints B assumes away.
   </p>
+</section>
+
+<!-- ================= ASSUMPTIONS ================= -->
+<section class="tabpane" id="tab-assumptions">
+  <h2>How to use the parameters</h2>
+  <p class="footnote" style="font-size:12.5px;max-width:900px">
+    The sidebar on the left is the single source of truth for every tab. Two optional couplings tie
+    the subsystems together: "drive A from Thermal tab" makes the radiator area follow GPU temperature
+    and IT power, and "count PV area in collision cross-section" adds the solar array to the collision
+    target. With both enabled, dragging the GPU temperature slider propagates end to end: junction
+    temperature &rarr; radiator area &rarr; collision cross-section &rarr; fleet collision rate &rarr;
+    cascade margin.
+  </p>
   <h2>Assumptions register</h2>
-  <table class="data">
+  <table class="data" style="max-width:1000px">
     <tr><th>Assumption</th><th>Validity / limitation</th></tr>
     <tr><td>Dilute gas, Poisson statistics</td><td>Mean free path exceeds shell thickness by ~10^7; individual event probabilities small.</td></tr>
     <tr><td>Circular orbits, no perturbations</td><td>J2 only accelerates the RAAN randomization the model already assumes. Eccentricity shifts densities by km; negligible on rates.</td></tr>
@@ -1068,7 +1084,7 @@ function setTab(id){
 let currentTab = "tab-master";
 
 /* ---------------- charts ---------------- */
-let chSweep, chLat, chVel, chThermal, chExt, chAdcs, chPower;
+let chSweep, chLat, chVel, chThermal, chExt, chAdcs, chPower, chVal;
 function makeCharts(){
   const gridCol = "rgba(143,160,189,.15)", tickCol = "#8fa0bd";
   const base = (extra) => ({responsive:true, maintainAspectRatio:false, animation:false,
@@ -1117,8 +1133,17 @@ function makeCharts(){
       x:{grid:{color:gridCol},ticks:{color:tickCol},title:{display:true,text:"IT power per satellite [kW]",color:tickCol}},
       y:{grid:{color:gridCol},ticks:{color:"#2a8be0"},title:{display:true,text:"area [m²]",color:"#2a8be0"}},
       y2:{position:"right",grid:{drawOnChartArea:false},ticks:{color:"#ffa94d"},title:{display:true,text:"collisions/yr",color:"#ffa94d"}}}})});
+  chVal = new Chart($("chVal"), {type:"bar", data:{labels:[], datasets:[
+      {label:"this model / benchmark", data:[], backgroundColor:[], borderWidth:0},
+      {label:"perfect agreement", type:"line", data:[], borderColor:"#dfe7f5",
+       borderDash:[6,4], borderWidth:1.2, pointRadius:0}]},
+    options:base({scales:{
+      x:{grid:{display:false},ticks:{color:tickCol,font:{size:10},maxRotation:60,minRotation:40}},
+      y:{grid:{color:gridCol},ticks:{color:tickCol},suggestedMin:0,suggestedMax:2.1,
+         title:{display:true,text:"ratio",color:tickCol}}}})});
   chartsByTab = {"tab-collision":[chSweep,chLat,chVel], "tab-thermal":[chThermal],
-                 "tab-external":[chExt], "tab-adcs":[chAdcs], "tab-power":[chPower]};
+                 "tab-external":[chExt], "tab-adcs":[chAdcs], "tab-power":[chPower],
+                 "tab-validation":[chVal]};
 }
 
 /* ---------------- mini 3D views (thermal config, ADCS actuators) ---------------- */
@@ -1942,6 +1967,29 @@ function fillValidation(){
   $("vbMass").textContent = th.specific.toFixed(1)+" kg/kW";
   $("vbFleet").textContent = inp.N.toLocaleString("en-US")+" × "+inp.th_PIT_kW+" kW = "
     +(inp.N*inp.th_PIT_kW/1e6).toFixed(1)+" GW IT";
+  // ratio column chart: ours / published (1.0 = perfect agreement)
+  const bars = [
+    ["kinetic E", kin.E, 2608, 0.005],
+    ["Keplerian E", E, 1941.3, 0.005],
+    ["Kep/kin ratio", kep.ratio, 0.744, 0.005],
+    ["ν per sat", kep.nuYr, 0.0485, 0.01],
+    ["thin shell", thn.E, 58000, 0.05],
+    ["N @1/yr", inp.N/Math.sqrt(E), 1816, 0.01],
+    ["A @1/yr", inp.A/E, 0.062, 0.02],
+    ["f_fail @1/yr", 1/E, 5.15e-4, 0.01],
+    ["κ", cc.kappa, 408, 0.01],
+    ["τ(κ=1)", cc.tauCrit_days, 22, 0.05],
+    ["screening", kep.nuYr*Math.PI*1e6/derive(inp).sigma, 320, 0.02],
+    ["PV m²/kW (B)", pvDD.ApvPerKw, 5.64, 0.10],
+    ["ext >10 cm", ext.fleetEnc10Yr, 500, 0.60],
+    ["ext >1 cm", ext.fleetHits1Yr, 2750, 1.10],
+  ];
+  chVal.data.labels = bars.map(b=>b[0]);
+  chVal.data.datasets[0].data = bars.map(b=>b[1]/b[2]);
+  chVal.data.datasets[0].backgroundColor = bars.map(b=>
+    Math.abs(b[1]/b[2]-1) <= b[3] ? "rgba(57,201,142,.75)" : "rgba(255,206,107,.75)");
+  chVal.data.datasets[1].data = bars.map(()=>1);
+  chVal.update();
 }
 
 window.addEventListener("load", ()=>{

@@ -45,9 +45,12 @@ Do not trust the model results unless manually verified.</div>
     Several organizations are proposing to move data centers into space: fleets of tens of
     thousands of satellites doing AI computation in orbit. Computers produce heat, and in
     space the only way to get rid of heat is to radiate it away from large panels. Large
-    panels make large targets. This tool asks a simple question with serious consequences:
-    if you fly 80,000 satellites, each the size of half a tennis court, in the same band of
-    low Earth orbit, how often would they collide?
+    panels make large targets. This tool started with a simple question: if you fly 80,000
+    satellites, each the size of half a tennis court, in the same band of low Earth orbit,
+    how often would they collide? It has since grown into an end-to-end systems model: the
+    same parameter set sizes the cooling system, the solar arrays and batteries, and the
+    attitude control, adds the debris already in orbit, and shows how every design choice
+    feeds back into collision risk.
   </p>
 
   <h2>The headline answer</h2>
@@ -75,10 +78,13 @@ Do not trust the model results unless manually verified.</div>
     weight.
   </p>
   <p>
-    <strong>Bigger radiators mean more collisions, in direct proportion.</strong> Twice the
-    panel area, twice the collision burden; and the burden grows with the <em>square</em> of
-    the number of satellites. Every additional unit of computing power in orbit carries a
-    proportional collision tax.
+    <strong>Bigger deployed area means more collisions, in direct proportion.</strong> Twice
+    the area, twice the collision burden; and the burden grows with the <em>square</em> of
+    the number of satellites. And the radiator is not even the biggest surface: the solar
+    array that powers the computers is several times larger (about 716 m&sup2; for an 80 kW
+    satellite in an eclipse-prone orbit). Counting it raises the collision workload roughly
+    sevenfold, to about 13,500 per year. Every additional unit of computing power in orbit
+    carries a proportional collision tax, and it is charged on the full wingspan.
   </p>
   <p>
     <strong>Where and how fast matters.</strong> Collisions concentrate at high latitudes,
@@ -88,14 +94,46 @@ Do not trust the model results unless manually verified.</div>
 
   <h2>How the model works, in one paragraph</h2>
   <p>
-    The tool contains two physical models. The first treats satellites like molecules of a
+    The core contains two physical models. The first treats satellites like molecules of a
     very thin gas bouncing around a spherical shell, a classic approach from the 1970s. The
     second respects real orbital mechanics: every satellite follows an orbit, and at any
     point in space only certain velocities are possible. The second model is the trustworthy
     one; the first is the benchmark. Their agreement within about 25% is itself a finding,
     and the orbital model was checked against a brute-force simulation that tracked
     thousands of orbits and counted every close approach: prediction and count agreed
-    within 3%.
+    within 3%. Around that core sit engineering models for cooling (a pumped two-phase loop
+    sizing the radiator from chip temperature), power (solar arrays and eclipse batteries),
+    attitude control (the torques and momentum the big wings create), and the debris already
+    in orbit. Two independent published analyses have since cross-checked this work: one
+    rebuilt the collision model from scratch and matched eleven of our numbers to three or
+    more digits, and a JPL spacecraft-economics study independently anchors our solar-array
+    sizing within 5%. The Validation tab shows the comparison live.
+  </p>
+
+  <h2>What the extended model found</h2>
+  <p>
+    <strong>The convenient orbit is the riskier orbit.</strong> Sun-synchronous orbits keep
+    the sun at a fixed angle, which thermal and power engineers love. They also make every
+    orbital plane near-polar, crossing every other plane at steep angles: the collision rate
+    rises about 39% over a mixed constellation.
+  </p>
+  <p>
+    <strong>Hotter chips, safer fleet.</strong> Radiated heat grows with the fourth power of
+    temperature, so running the processors hotter shrinks the radiator quadratically, and the
+    collision target with it. Chip temperature turns out to be an orbital-safety variable.
+  </p>
+  <p>
+    <strong>Some debris cannot be dodged.</strong> Beyond collisions between the satellites
+    themselves, the fleet flies through existing debris. Trackable objects add workload the
+    autopilot can handle; the centimeter-class fragments too small to track cannot be avoided
+    at all, and at this fleet size they would strike about 5,500 times per year. Only damage
+    tolerance in the design (segmented radiators, shielding) reduces what those hits cost.
+  </p>
+  <p>
+    <strong>Attitude control is not the blocker.</strong> Despite 33-meter wingspans, the
+    satellite's inertia is about half that of the Hubble Space Telescope, which points with
+    ordinary reaction wheels. Standard wheels handle this vehicle with healthy margins; the
+    structure costs agility, not control.
   </p>
 
   <h2>How to explore the problem yourself</h2>
@@ -108,24 +146,31 @@ Do not trust the model results unless manually verified.</div>
   </p>
   <table>
     <tr><td><strong>Try this</strong></td><td><strong>What you will see</strong></td></tr>
-    <tr><td>Drag "Radiator area" down</td>
-        <td>Collisions fall in direct proportion: the radiator-size tax.</td></tr>
     <tr><td>Drag "N satellites" up or down</td>
         <td>Collisions scale with the square of fleet size.</td></tr>
+    <tr><td>In the Thermal tab, drag GPU temperature (enable "drive A from Thermal")</td>
+        <td>Hotter chips shrink the radiator and the collision rate follows it down, live.</td></tr>
+    <tr><td>In Parameters, tick "count PV area in collision cross-section"</td>
+        <td>The solar array joins the target area and the collision workload jumps about
+            sevenfold: the full deployed-area tax.</td></tr>
+    <tr><td>Switch "Orbit regime" to all Sun-synchronous</td>
+        <td>The thermally convenient orbit <em>raises</em> the collision rate about 39%,
+            because all near-polar orbital planes cross each other at steep angles.</td></tr>
     <tr><td>Move "Avoidance failure"</td>
         <td>The difference between natural workload and actual residual losses.</td></tr>
-    <tr><td>Switch "Orbit regime" to all Sun-synchronous</td>
-        <td>A popular orbit choice (convenient for solar panels and radiators) that
-            <em>raises</em> the collision rate about 40%, because all near-polar orbital
-            planes cross each other at steep angles.</td></tr>
+    <tr><td>Open the External Debris tab</td>
+        <td>What the environment does to the fleet: avoidable trackable encounters vs the
+            centimeter-class hits nothing can dodge.</td></tr>
+    <tr><td>In the ADCS tab, switch radiator configuration</td>
+        <td>Folding the same area into a compact stack cuts the control problem almost fourfold.</td></tr>
     <tr><td>Set "Radial profile" to a single thin shell</td>
         <td>Concentrating everyone at one altitude multiplies the rate about 30 times.</td></tr>
-    <tr><td>Open the "Satellite scale" tab</td>
+    <tr><td>Open the "Satellite scale" view in Collision Avoidance</td>
         <td>The satellite next to a city bus, a tennis court, an ISS solar wing, and
             Hubble, to make the size concrete.</td></tr>
-    <tr><td>Watch the cascade card</td>
-        <td>Whether one breakup would stay contained (green) or run away (red), and the
-            fleet size where that boundary sits.</td></tr>
+    <tr><td>Open the Validation tab</td>
+        <td>Our numbers against two independent published analyses, as a live ratio chart:
+            green bars on the 1.0 line are exact matches.</td></tr>
   </table>
 
   <h2>What this model does not say</h2>
